@@ -4,8 +4,8 @@
 
 (require parser-tools/lex
          test-engine/racket-tests
-         "lexer.ss"
-         "ast.ss")
+         (planet dherman/c:3:2/ast)
+         (planet dherman/c:3:2/private/lexer))
 
 (provide c-lex-diff missing-code missing-code? missing-code-start missing-code-end)
 
