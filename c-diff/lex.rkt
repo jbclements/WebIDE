@@ -14,18 +14,23 @@
 
 (struct missing-code (start end))
 
-(define (make-lexer str)
-  (let ([in (open-input-string str)])
-    (lambda () (c-lexer in))))
-
+;; turn a string into a list of tokens
 (define (c-token-list str)
   (let ([lex (make-lexer str)])
     (make-token-list lex)))
 
+;; create a lexer for a string
+(define (make-lexer str)
+  (let ([in (open-input-string str)])
+    (lambda () (c-lexer in))))
+
+;; pull all of the tokens out of the lexer
+;; lexer -> (listof token)
 (define (make-token-list lex)
   (let ([cur (lex)])
     (cond [(equal? (position-token-token cur) 'EOF) empty]
           [else (cons cur (make-token-list lex))])))
+
 
 (define (src-from-token tok)
   (build-src (position-token-start-pos tok) (position-token-end-pos tok) #f))
@@ -39,6 +44,10 @@
 ; one, two - ASTs
 ; from, end - int positions. from is the ending offset of the last token. 
 ;             end is the offset of the end of string two
+
+;; I think it would probably be a lot better to use a generalized 'diff' from 
+;; a library, but it looks like Neil's is the one to use, and it doesn't (yet?)
+;; provide this functionality.
 (define (diff-tokens one two from end)
   (cond
     [(and (empty? one) (empty? two)) empty]

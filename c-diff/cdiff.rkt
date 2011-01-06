@@ -28,6 +28,59 @@
          missing-code-start
          missing-code-end)
 
+
+;; JBC Comments: lots of undocumented functions here, bleah.
+;; also, this code is too blase about lists vs. elements for my taste;
+;; there are lots of places where arguments and return values are
+;; either lists or non-lists.
+
+
+;; Bill Hess comments:
+; The function c-diff takes two arguments. The first can be either a
+;string or a list of strings that are possible good answers. The second
+;argument is an input string that the answers are being matched
+;against. The result is a list of areas where the input string should
+;be highlighted to indicate an error, or places where there is possibly
+;one missing input token.
+;
+;For each answer string we compare it with the ast and token list of
+;the input string. If the string does not parse, the result of ast
+;comparison is that the entire string it highlighted. Even if the
+;string does not parse the lexical analysis will still give a good
+;result. Ast comparison is good for ignoring superficial differences
+;like extra parens. The token comparison simply traverses through each
+;list of tokens. If the tokens are different, we look ahead one token
+;in each list to see if we can synchronize the lists again. This will
+;either highlight an unneeded token in the input string or result in a
+;marker saying that a token should have gone in that spot. This is
+;pretty rough and simple, but gives okay results. I took a look at
+;doing something more sophisticated like Levenshtein distance but
+;couldn't easily integrate it. Maybe something to add in the future.
+;
+;Every highlighting result has a "size" calculated for it which is
+;based on the number of highlights, their size and the number of
+;missing sections. The diff with the smallest value is returned which
+;can be either the ast or token comparison for any one of the provided
+;answer strings.
+
+; (or/c string? (listof string?)) string? -> ???
+(define (c-diff desired actual)
+  (cond
+    [(empty? desired) 'null]
+    [(string? desired)
+     (let ([p-diff (clean-diff (c-parse-diff desired actual))][l-diff (clean-diff (c-lex-diff desired actual))])
+       (if (< (diff-size p-diff) (diff-size l-diff)) p-diff l-diff))]
+    [(list? desired) 
+     (let ([fdiff (c-diff (car desired) actual)][rdiff (c-diff (cdr desired) actual)])
+       (cond
+         [(and (symbol? fdiff) (symbol? rdiff)) 'null]
+         [(symbol? rdiff) fdiff]
+         [(symbol? fdiff) rdiff]
+         [else (if (< (diff-size fdiff) (diff-size rdiff)) fdiff rdiff)]))]
+    [else empty]))
+
+
+
 (define same-struct? (lambda (a b)
   (equal? (let-values ([(type c) (struct-info a)]) type)
           (let-values ([(type c) (struct-info b)]) type))))
@@ -56,15 +109,23 @@
         [(init? one) (init-diff one two)]
         [else '(1)])))
 
-(define multimap (lambda (func list1 list2)
-  (cond
-    [(or (and (false? list1) (false? list2)) (and (empty? list1) (empty? list2))) '()]
-    [(or (false? list1) (empty? list1)) (map (lambda (x) (func #f x)) list2)]
-    [(or (false? list2) (empty? list2)) (map (lambda (x) (func x #f)) list1)]
-    [else (cons (func (car list1) (car list2)) (multimap func (cdr list1) (cdr list2)))])))
+(define (pad-to-length l len)
+  (append l (build-list (- len (length l)) (lambda (dc) #false))))
 
-(define ast-diff-list (lambda (list1 list2) ; when using this function, check for getting a #f from ast-diff
-  (if (or list1 list2) (foldl append '() (multimap ast-diff list1 list2)) '())))
+;; map of applying func to 1 element from each of list 1 and list 2.
+;; when either list runs out, just start using #f for that
+;; argument position.
+(define (multimap f l1 l2)
+  (let ([maxlen (max (length l1) (length l2))])
+    (map f
+         (pad-to-length l1 maxlen)
+         (pad-to-length l2 maxlen))))
+
+; when using this function, check for getting a #f from ast-diff
+(define (ast-diff-list list1 list2) 
+  (if (or list1 list2)
+      (foldl append '() (multimap ast-diff list1 list2))
+      '()))
 
 (define id-diff (lambda (one two)
   (let ([src-neq (lambda (x y) (if (equal? x y) '() (list (get-src two))))])
@@ -264,46 +325,5 @@
                                 (cdr (cdr diff))))
               (cons (car diff) (clean-diff (cdr diff))))]))
 
-; The function c-diff takes two arguments. The first can be either a
-;string or a list of strings that are possible good answers. The second
-;argument is an input string that the answers are being matched
-;against. The result is a list of areas where the input string should
-;be highlighted to indicate an error, or places where there is possibly
-;one missing input token.
-;
-;For each answer string we compare it with the ast and token list of
-;the input string. If the string does not parse, the result of ast
-;comparison is that the entire string it highlighted. Even if the
-;string does not parse the lexical analysis will still give a good
-;result. Ast comparison is good for ignoring superficial differences
-;like extra parens. The token comparison simply traverses through each
-;list of tokens. If the tokens are different, we look ahead one token
-;in each list to see if we can synchronize the lists again. This will
-;either highlight an unneeded token in the input string or result in a
-;marker saying that a token should have gone in that spot. This is
-;pretty rough and simple, but gives okay results. I took a look at
-;doing something more sophisticated like Levenshtein distance but
-;couldn't easily integrate it. Maybe something to add in the future.
-;
-;Every highlighting result has a "size" calculated for it which is
-;based on the number of highlights, their size and the number of
-;missing sections. The diff with the smallest value is returned which
-;can be either the ast or token comparison for any one of the provided
-;answer strings.
 
-; (or/c string? (listof string?)) string? -> ???
-(define (c-diff correct submitted)
-  (cond
-    [(empty? correct) 'null]
-    [(string? correct)
-     (let ([p-diff (clean-diff (c-parse-diff correct submitted))][l-diff (clean-diff (c-lex-diff correct submitted))])
-       (if (< (diff-size p-diff) (diff-size l-diff)) p-diff l-diff))]
-    [(list? correct) 
-     (let ([fdiff (c-diff (car correct) submitted)][rdiff (c-diff (cdr correct) submitted)])
-       (cond
-         [(and (symbol? fdiff) (symbol? rdiff)) 'null]
-         [(symbol? rdiff) fdiff]
-         [(symbol? fdiff) rdiff]
-         [else (if (< (diff-size fdiff) (diff-size rdiff)) fdiff rdiff)]))]
-    [else empty]))
 

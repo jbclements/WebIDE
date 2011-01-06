@@ -65,3 +65,4 @@
 (check-equal? (ast-diff (parse-expression "4*3") (parse-expression "4*2")) '(#s(src 3 1 2 4 1 3 #f)))
 (check-equal? (ast-diff (parse-expression "4  *  3   ") (parse-expression "4*2")) '(#s(src 3 1 2 4 1 3 #f)))
 
+
