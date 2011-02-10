@@ -76,11 +76,12 @@
 (define evaluator-table
   ;; each entry requires a name and a list containing the list of text fields and the function
   ;; that handles the evaluation.
-  `(("getApproxAgeHeader" ((firstLine) ,approx-age-header-checker))))
+  `(("getApproxAgeHeader" ((firstLine) ,approx-age-header-checker))
+    ("alwaysSucceed" ((firstLine) ,(lambda (dc) (success "Well Done!"))))))
 
 
 (serve/servlet start
-               #:port 8067
+               #:port 8025
                #:listen-ip #f
                #:launch-browser? #f
                #:servlet-path "/eval.rkt"
