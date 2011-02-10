@@ -68,7 +68,7 @@
                              request-hash))]))
 
 (define (approx-age-header-checker firstline)
-  (match (first-line-checker firstline)
+  (match (birth-year-example firstline)
     ['success (success "Good Job!")]
     [(? string? msg) (failure msg)]))
 

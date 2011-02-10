@@ -12,36 +12,6 @@
 (define (type-name? t)
   (member t '("int" "double" "String"))) ;; ... incomplete
 
-;; first-line-checker : string -> (or/c string symbol)
-;; returns a string, indicating an error message, or 'success,
-;; indicating success.
-(define (first-line-checker first-line)
-  (match/fail* 'success
-    [(tokenize-string first-line) 
-     `("public" ,rest ...) 
-     "This function signature must begin with the word \"public\"."]
-    [rest `(,(? type-name? ty) ,rest ...) "After the word public, you need a type name."]
-    [ty "int" "This function's return type must be \"int\"."]
-    [rest `(,pre ... "(" ,args ... ")" ,leftover ...) 
-          "A function header must contain a pair of parentheses around the argument list."]
-    [leftover `() "There shouldn't be anything after the right-paren (\")\")."]
-    [pre `(,name) "The function name (a single word) comes between the type 
-                    of the function and the argument list."]
-    [name "getApproxAge" 
-          "The name of the function should be \"getApproxAge\"."]
-    [args `(,arg1 ... "," ,arg2 ...) 
-          "You need a comma in the argument list to separate the two arguments."]
-    [arg1 `(,arg1ty ,arg1name) 
-          "The first argument should consist of a type and a name (exactly two words)."]
-    [arg1ty (? type-name? _) "The first part of the first argument must be a type."]
-    [arg1ty "int" "The first argument should be of type \"int\"."]
-    [arg1name "birthYear" "The name of the first argument should be \"birthYear\"."]
-    [arg2 `(,arg2ty ,arg2name) "The second argument should consist of a type and a name."]
-    [arg2ty (? type-name? _) "The first part of the second argument must be a type."]
-    [arg2ty "int" "The second argument should be of type \"int\"."]
-    [arg2name "curYear" "The name of the second argument should be \"curYear\"."]))
-
-
 ;; LET'S DO IT ALL OVER WITH BETTER ABSTRACTION:
 
 (define (make-java-header-checker first-line-spec)
@@ -57,8 +27,7 @@
          [rest `(,pre ... "(" ,args ... ")" ,leftover ...) 
                "A function header must contain a pair of parentheses around the argument list."]
          [leftover `() "There shouldn't be anything after the right-paren (\")\")."]
-         [pre `(,name) "The function name (a single word) comes between the type 
-              of the function and the argument list."]
+         [pre `(,name) "The function name (a single word) comes between the type of the function and the argument list."]
          [name (? (equal?to fun-name))
                (format "The name of the function should be \"~a\"." fun-name)]))]))
 
@@ -148,52 +117,14 @@
          [fail clause.fail])]))
 
 
-#;(first-line-checker "int ( 3 )")
-
-;; sample interactions, now used as regression tests:
-(check-equal? (first-line-checker "int (3 )")
-              "This function signature must begin with the word \"public\".")
-(check-equal? (first-line-checker "public int(3)")
-              "There must be a function name between the type of the function and the argument list.")
-(check-equal? (first-line-checker "public int zebra goes_bananas42 ( 3)")
-              "The function name (a single word) is the only thing that comes between the type of the function and the argument list.")
-(check-equal? (first-line-checker "public int zebra (3 )")
-              "The name of the function should be \"getApproxAge\".")
-(check-equal? (first-line-checker "public int getApproxAge( 3 )")
-              "You need a comma in the argument list to separate the two arguments.")
-(check-equal? (first-line-checker "public int getApproxAge( 3,)")
-              "The first argument should consist of a type and a name (exactly two words).")
-(check-equal? (first-line-checker "public int getApproxAge ( 3 )")
-              "You need a comma in the argument list to separate the two arguments.")
-(check-equal? (first-line-checker "public int getApproxAge ( 3 , )")
-              "The first argument should consist of a type and a name (exactly two words).")
-(check-equal? (first-line-checker "public int getApproxAge ( 3 4 , )")
-              "The first part of the first argument must be a type.")
-(check-equal? (first-line-checker "public int getApproxAge ( double 4 , )")
-              "The first argument should be of type \"int\".")
-(check-equal? (first-line-checker "public int getApproxAge ( int 4, )")
-              "The name of the first argument should be \"birthYear\".")
-(check-equal? (first-line-checker "public int getApproxAge ( int birthYear , )")
-              "The second argument should consist of a type and a name.")
-(check-equal? (first-line-checker "public int getApproxAge ( int birthYear , double )")
-              "The second argument should consist of a type and a name.")
-(check-equal? (first-line-checker "public int getApproxAge ( int birthYear , double zeb )")
-              "The second argument should be of type \"int\".")
-(check-equal? (first-line-checker "public int getApproxAge ( int birthYear , int zeb )")
-              "The name of the second argument should be \"curYear\".")
-(check-equal? (first-line-checker "public int getApproxAge ( int birthYear , int curYear )")
-              'success)
-
-
-
 
 ;; sample interactions, now used as regression tests:
 (check-equal? (birth-year-example "int (3 )")
               "This function signature must begin with the word \"public\".")
 (check-equal? (birth-year-example "public int(3)")
-              "There must be a function name between the type of the function and the argument list.")
+              "The function name (a single word) comes between the type of the function and the argument list.")
 (check-equal? (birth-year-example "public int zebra goes_bananas42 ( 3)")
-              "The function name (a single word) is the only thing that comes between the type of the function and the argument list.")
+              "The function name (a single word) comes between the type of the function and the argument list.")
 (check-equal? (birth-year-example "public int zebra (3 )")
               "The name of the function should be \"getApproxAge\".")
 (check-equal? (birth-year-example "public int getApproxAge( 3 )")
