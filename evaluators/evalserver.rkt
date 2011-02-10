@@ -30,6 +30,7 @@
    #"Okay"
    (current-seconds)
    TEXT/HTML-MIME-TYPE ;; should change?
+   empty
    (list
     (string->bytes/utf-8 
      (jsexpr->json 
