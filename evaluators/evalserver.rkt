@@ -2,6 +2,7 @@
 
 (require web-server/servlet-env
          web-server/http/request-structs
+         web-server/http/response-structs
          xml
          (planet dherman/json:3:0)
          racket/dict
@@ -24,7 +25,15 @@
 (define internal-error failure)
 
 (define (result tag text)
-  (jsexpr->json (make-immutable-hasheq `((status . ,tag) (message . ,text)))))
+  (response/full
+   200
+   #"Okay"
+   (current-seconds)
+   TEXT/HTML-MIME-TYPE ;; should change?
+   (list
+    (string->bytes/utf-8 
+     (jsexpr->json 
+      (make-immutable-hasheq `((status . ,tag) (message . ,text))))))))
 
 (define (start request)
   (printf "received request\n")
@@ -56,9 +65,10 @@
               (match-let ([(list (list required-fields evaluator)) (dict-ref evaluator-table id-name)])
                 (cond 
                   [(not (andmap (lambda (field) (dict-has-key? text-fields field)) required-fields))
-                   (internal-error (format
-                                    "request for id ~s is missing some of the required fields ~s"
-                                    required-fields))]
+                   (internal-error 
+                    (format
+                     "request for id ~s is missing some of the required fields ~s"
+                     required-fields))]
                   [else
                    (with-handlers ([exn:fail? (lambda (exn) (internal-error (exn-message exn)))])
                      (apply evaluator (map (lambda (field) (dict-ref text-fields field)) required-fields)))]))]))]
