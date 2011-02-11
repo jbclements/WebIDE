@@ -8,10 +8,11 @@
          rackunit)
 
 (define tiny-lab-path "/Users/clements/trac-webide/labs/JBCJava/tiny-lab.xml")
+(define tiny-with-box-path "/Users/clements/trac-webide/labs/JBCJava/tiny-with-box.xml")
 (define if-lab-path "/Users/clements/trac-webide/labs/if.xml")
 
 (define sample-lab
-  (call-with-input-file if-lab-path
+  (call-with-input-file if-lab-path #;tiny-with-box-path
     (lambda (port)
       (ssax:xml->sxml port `((w1 . "http://www.web-ide.org/namespaces/labs/1"))))))
 
@@ -39,18 +40,42 @@
          (send/suspend
           (lambda (k-url)
           (response/sxml
-           (top-wrap `(div ,(process-content (first steps))
+           (top-wrap `(div ,@(map process-content (rest (rest (first steps))))
                            (p (a (@ (href ,k-url)) "continue")))))))
          (show-steps (rest steps))]))
 
 (define (process-content content)
   ;; for now, just strip the namespace off:
-  (match content
+  (match (let ([ans content])
+           (printf "~s\n" ans)
+           ans)
+    ;; don't display evaluators.
+    [`(w1:evaluator ,stuff ...) ""]
+    [`(w1:segment ,contents ...)
+     (match contents
+       [`((@ ,attrs ...) ,(? string? strs) ...)
+        `(textarea (@ (width ,(first (dict-ref attrs 'width)))
+                      (height ,(first (dict-ref attrs 'height))))
+                   "" ,@strs)]
+       ;; ignore the bogus ones that just hold evaluators:
+       [`((@ ,attrs ...) ,(? evaluator? e) ...) ""]
+       [other (error 'process-content
+                     "strange segment: ~a" content)])]
     [`(,tag (@ ,attrs ...) ,content ...)
      `(,(strip-tag tag) (@ ,@attrs) ,@(map process-content content))]
     [`(,tag ,content ...)
-     `(,(strip-tag tag) ,@(map process-content content))]
+     `(,(strip-tag tag) ,@(map process-content content))]    
     [other other]))
+
+
+(check-equal? (process-content `(w1:segment (@ (width "20") (id "fresh-id-1") (height "1"))))
+              `(textarea (@ (width "20") (height "1")) ""))
+
+(define (evaluator? sxml)
+  (and (list? sxml) (equal? (first sxml) 'w1:evaluator)))
+
+
+
 
 (define (strip-tag s)
   (match (regexp-match #px"[^:]*:(.*)" (symbol->string s))
