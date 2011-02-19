@@ -7,19 +7,23 @@
          standardize/shallow)
 
 (define-syntax (apat stx)
+  (define-syntax-class attribute-pattern
+    #:description "attribute pattern"
+    (pattern (attrname:id ... . other-attrs:id)))
+  
   (syntax-parse stx
-    [(_ (tag:id (attrname:id ... . other-attrsid:id) . elementsid:id) 
+    [(_ (tag:id apat:attribute-pattern . elementsid:id) 
         body:expr)
      #'(cons (quote tag) 
              (standardize/shallow
               (lambda (tagid attrs . elementsid)
                 (match attrs
                   [(cons '@
-                         (list-no-order (list (quote attrname) attrname) ... 
-                                        other-attrsid (... ...)))
+                         (list-no-order (list (quote apat.attrname) apat.attrname) ... 
+                                        apat.other-attrs (... ...)))
                    body]
                   [other (error 'apat "missing required attribute from ~a" 
-                                (quote (attrname ...)))]))))]))
+                                (quote (apat.attrname ...)))]))))]))
 
 ;; take a function *requiring* sxml attributes
 ;; and make it work for sxml without attributes

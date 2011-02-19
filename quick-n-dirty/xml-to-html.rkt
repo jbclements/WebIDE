@@ -1,12 +1,13 @@
 #lang racket
 
 (require (planet clements/sxml2)
-         (except-in rackunit foldts))
+         (except-in rackunit foldts)
+         "apat.rkt")
 
-
-#;(provide path->xml
+(provide path->xml
          xml->steps
-         step->html)
+         step->html
+         pcon)
 
 (define (xml->steps lab-xml)
   ((sxpath '(w1:lab w1:step)) lab-xml))
@@ -17,7 +18,7 @@
       (ssax:xml->sxml port `((w1 . "http://www.web-ide.org/namespaces/labs/1"))))))
 
 
-(define rules
+(define stylesheet
   (list
    [apat
     (w1:step (name . others) . content)
@@ -26,13 +27,16 @@
     (w1:evaluator any . content)
     ""]
    [apat
-    (w1:segment (width height others) . content)
+    (w1:segment (width height . others) . content)
     `(textarea  (@ (width ,width)
                    (height ,height))
                 "" ,@content)]
    `(*default*
      .
      (lambda args args))))
+
+(define (pcon content)
+  (pre-post-order content stylesheet))
 
 
 
@@ -151,4 +155,8 @@
 (check-equal? (process-content `(w1:segment (@ (width "20") (id "fresh-id-1") (height "1"))))
               `(textarea (@ (width "20") (height "1")) ""))
 
-|#
+
+
+(check-equal? (pcon `(w1:segment (@ (width "20") (id "fresh-id-1") (height "1"))))
+              `(textarea (@ (width "20") (height "1")) ""))
+
