@@ -37,18 +37,25 @@
 
 ;; evaluate-and-continue : take response and rest of steps, keep going:
 (define (evaluate-and-continue evaluators request steps)
-  (define bindings (request-bindings/raw request))
+  (define bindings (filter binding:form? (request-bindings/raw request)))
   (printf "evaluators: ~a\n" evaluators)
+  (map (run-evaluator bindings) evaluators)
   #;(define responses (collect-responses evaluators bindings-promise))
   (show-steps steps))
 
 ;; run-evaluator : take an evaluator and a bindings-promise, run it:
-#;(define (run-evaluator evaluator bindings)
-  (match-let ([(list name labid url segs args) (parse-evaluator evaluator)])
-    (define texts (map (find-binding bindings) segs))
-    4))
+(define ((run-evaluator bindings) evaluator)
+  (define texts (map (find-binding bindings) (evaluator-segs evaluator)))
+  (printf "texts: ~a\n\n" texts))
 
-#;(define ((find-binding bindings) ))
+(define ((find-binding bindings) name)
+  (match (filter (lambda (f) (equal? (string->bytes/utf-8 name) (binding-id f)))
+                 bindings)
+    [(list) (error 'find-binding "no segment found with name: ~a" name)]
+    [(list (binding:form dc val)) (bytes->string/utf-8 val)]
+    [other 
+     (error 'find-binding "more than one segment found with name: ~a" name)]))
+
 
 
 
