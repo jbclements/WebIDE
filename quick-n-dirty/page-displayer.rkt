@@ -2,6 +2,7 @@
 
 (require web-server/servlet-env
          web-server/servlet/web
+         web-server/http/request-structs
          "response-sxml.rkt"
          "xml-to-html.rkt"
          rackunit)
@@ -23,12 +24,32 @@
   (cond [(empty? steps) (response/sxml
                          (top-wrap `(h1 "All Done! You rock!")))]
         [else
-         (send/suspend
-          (lambda (k-url)
-          (response/sxml
-           (top-wrap `(div ,(step->html (first steps))
-                           (p (a (@ (href ,k-url)) "continue")))))))
-         (show-steps (rest steps))]))
+         (evaluate-and-continue
+          (step->evaluators (first steps))
+          (send/suspend
+           (lambda (k-url)
+             (response/sxml
+              (top-wrap `(form (@ (action ,k-url) (method "post"))
+                               ,(pcon (first steps))
+                               (input (@ (type "submit") (value "Submit"))))))))
+          (rest steps))]))
+
+
+;; evaluate-and-continue : take response and rest of steps, keep going:
+(define (evaluate-and-continue evaluators request steps)
+  (define bindings (request-bindings/raw request))
+  (printf "evaluators: ~a\n" evaluators)
+  #;(define responses (collect-responses evaluators bindings-promise))
+  (show-steps steps))
+
+;; run-evaluator : take an evaluator and a bindings-promise, run it:
+#;(define (run-evaluator evaluator bindings)
+  (match-let ([(list name labid url segs args) (parse-evaluator evaluator)])
+    (define texts (map (find-binding bindings) segs))
+    4))
+
+#;(define ((find-binding bindings) ))
+
 
 
 (define steps (xml->steps sample-lab))

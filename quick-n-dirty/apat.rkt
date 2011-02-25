@@ -12,18 +12,26 @@
     (pattern (attrname:id ... . other-attrs:id)))
   
   (syntax-parse stx
-    [(_ (tag:id apat:attribute-pattern . elementsid:id) 
+    [(_ (tag:id () . elementsid:id) 
+        body:expr)
+     #'(cons (quote tag) 
+             (standardize/shallow
+              (lambda (tagid attrs . elementsid)
+                (match attrs
+                  [(list'@) body]
+                  [other (error 'apat "expected no attributes, got ~a" other)]))))]
+    [(_ (tag:id attpat:attribute-pattern . elementsid:id) 
         body:expr)
      #'(cons (quote tag) 
              (standardize/shallow
               (lambda (tagid attrs . elementsid)
                 (match attrs
                   [(cons '@
-                         (list-no-order (list (quote apat.attrname) apat.attrname) ... 
-                                        apat.other-attrs (... ...)))
+                         (list-no-order (list (quote attpat.attrname) attpat.attrname) ... 
+                                        attpat.other-attrs (... ...)))
                    body]
                   [other (error 'apat "missing required attribute from ~a" 
-                                (quote (apat.attrname ...)))]))))]))
+                                (quote (attpat.attrname ...)))]))))]))
 
 ;; take a function *requiring* sxml attributes
 ;; and make it work for sxml without attributes
@@ -34,6 +42,10 @@
        (apply fun tag (cons '@ attrs) elements)]
       [elements
        (apply fun tag (cons '@ '()) elements)])))
+
+
+
+
 
 (check-equal? (apply
                (standardize/shallow (lambda (a b . rest)
@@ -98,3 +110,23 @@
   `(w1:segment (@ (height "49") (boogle "rap") (width "32")) "a" "b"))
  (list '((height "49") (boogle "rap") (width "32")) (list "a" "b")))
 
+
+;; force no attrs
+(check-equal? 
+ (apply 
+  (cdr 
+   [apat
+    (w1:id () . content)
+    13])
+  `(w1:id "abc" "def"))
+ 13)
+(check-exn
+ (lambda (exn)
+   (regexp-match #px"expected no attributes" (exn-message exn)))
+ (lambda ()
+   (apply 
+    (cdr 
+     [apat
+      (w1:id () . content)
+      13])
+    `(w1:id (@ (foo "13")) "abc" "def"))))
