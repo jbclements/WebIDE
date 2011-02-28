@@ -48,6 +48,9 @@
   (define texts (map (find-binding bindings) (evaluator-segs evaluator)))
   (printf "texts: ~a\n\n" texts))
 
+;; (listof form:bindng) -> string -> string
+;; find a binding with the given name. There must be exactly one, and it
+;; must be a "form binding".
 (define ((find-binding bindings) name)
   (match (filter (lambda (f) (equal? (string->bytes/utf-8 name) (binding-id f)))
                  bindings)
