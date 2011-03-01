@@ -5,6 +5,7 @@
          web-server/http/request-structs
          "response-sxml.rkt"
          "xml-to-html.rkt"
+         "run-evaluator.rkt"
          rackunit)
 
 (define tiny-lab-path "/Users/clements/trac-webide/labs/JBCJava/tiny-lab.xml")
@@ -43,21 +44,7 @@
   #;(define responses (collect-responses evaluators bindings-promise))
   (show-steps steps))
 
-;; run-evaluator : take an evaluator and a bindings-promise, run it:
-(define ((run-evaluator bindings) evaluator)
-  (define texts (map (find-binding bindings) (evaluator-segs evaluator)))
-  (printf "texts: ~a\n\n" texts))
 
-;; (listof form:bindng) -> string -> string
-;; find a binding with the given name. There must be exactly one, and it
-;; must be a "form binding".
-(define ((find-binding bindings) name)
-  (match (filter (lambda (f) (equal? (string->bytes/utf-8 name) (binding-id f)))
-                 bindings)
-    [(list) (error 'find-binding "no segment found with name: ~a" name)]
-    [(list (binding:form dc val)) (bytes->string/utf-8 val)]
-    [other 
-     (error 'find-binding "more than one segment found with name: ~a" name)]))
 
 
 
