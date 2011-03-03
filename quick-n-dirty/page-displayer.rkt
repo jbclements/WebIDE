@@ -39,10 +39,18 @@
 ;; evaluate-and-continue : take response and rest of steps, keep going:
 (define (evaluate-and-continue evaluators request steps)
   (define bindings (filter binding:form? (request-bindings/raw request)))
-  (printf "evaluators: ~a\n" evaluators)
-  (map (run-evaluator bindings) evaluators)
-  #;(define responses (collect-responses evaluators bindings-promise))
-  (show-steps steps))
+  (define ev (run-evaluator bindings))
+  (let loop ([evaluators evaluators])
+    (cond [(empty? evaluators) (show-steps steps)]
+          [else 
+           (match (ev (first evaluators))
+             [(struct success ()) (loop (rest evaluators))]
+             [(struct failure (msg)) (fail-page msg)])])))
+
+(define (fail-page msg)
+  (response/sxml
+   (top-wrap `(div (h1 "Evaluator Failed")
+                   (p "failure message : " ,msg)))))
 
 
 

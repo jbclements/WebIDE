@@ -2,7 +2,8 @@
 
 (require (planet clements/sxml2)
          (except-in rackunit foldts)
-         "apat.rkt")
+         "apat.rkt"
+         "shared.rkt")
 
 (provide path->xml
          xml->steps
@@ -10,8 +11,6 @@
          step->evaluators
          parse-evaluator
          (struct-out evaluator))
-
-(struct evaluator (name labid url segs args) #:transparent)
 
 ;; read the lab xml from a path
 (define (path->xml path)
@@ -86,33 +85,33 @@
                           `(href ,url)))
                     ,(? seg-or-arg? elts) ...)
      (define-values (segs args) (partition seg? elts))
-     (evaluator name labid url
-                (map seg->str segs) 
-                (map arg->strs args))]
+     (evaluator url
+                `(("name" . ,(literal name))
+                  ("labid" . ,(literal labid))
+                  ,@(for/list ([s segs][i (in-naturals)]) (seg->str s i)) 
+                  ,@(map arg->strs args)))]
     [other (error 'parse-evaluator "badly formed evaluator: ~a" other)]))
 
 (define (seg-or-arg? elt) (member (car elt) '(w1:segid w1:arg)))
 (define (seg? elt) (equal? (car elt) 'w1:segid))
 
 ;; return the string for a well-formed segid
-(define (seg->str elt)
+(define (seg->str elt idx)
   (match elt
-    [`(w1:segid (w1:id ,(? string? segid))) segid]
+    ;; in the future, we won't have to make up names here:
+    [`(w1:segid (w1:id ,(? string? segid))) (cons (string-append "seg-" (number->string idx))
+                                                  (userfield segid))]
     [other (error 'seg->str "badly formed seg: ~v" elt)]))
 
 ;; return a list containing the name and value of an arg
 (define (arg->strs elt)
   (match elt
-    [`(w1:arg (w1:name ,(? string? name)) (w1:value ,value)) (list name value)]
-    [`(w1:arg (w1:name ,(? string? name)) (w1:value)) (list name "")]
+    [`(w1:arg (w1:name ,(? string? name)) (w1:value ,value)) (cons name (literal value))]
+    [`(w1:arg (w1:name ,(? string? name)) (w1:value)) (cons name (literal ""))]
     [other (error 'arg->strs "badly formed arg: ~v" elt)]))
 
 
 
-
-;; etract an attribute
-#;(define (find-attr attrs key)
-  )
 ;; extract an attribute representing a number
 (define (num-attr attrs key)
   (match (assoc key attrs)
@@ -144,9 +143,13 @@
                                                               (w1:arg (w1:name "a1")
                                                                       (w1:value "v1"))
                                                               (w1:segid (w1:id "b")))))))
-              (list (evaluator "abc" "def" "ghi" (list) (list))
-                    (evaluator "mno" "pqr" "stu" (list "a" "b") 
-                               (list (list "a1" "v1")))))
+              (list (evaluator "ghi" (list (cons "name" (literal "abc")) 
+                                           (cons "labid" (literal "def"))))
+                    (evaluator "stu" (list (cons "name" (literal "mno"))
+                                           (cons "labid" (literal "pqr"))
+                                           (cons "seg-0" (userfield "a"))
+                                           (cons "seg-1" (userfield "b"))
+                                           (cons "a1" (literal "v1"))))))
 
 (check-equal? (strip-tag 'w1:br) 'br)
 
