@@ -3,7 +3,6 @@
 (require web-server/servlet-env
          web-server/http/request-structs
          web-server/http/response-structs
-         xml
          (planet dherman/json:3:0)
          racket/dict
          "java-header-example.rkt"
@@ -14,10 +13,10 @@
 (define text-fields-name 'textfields)
 
 ;; create a string indicating failure:
-(define (failure xexpr) (result "failure" (xexpr->string xexpr)))
+(define (failure str) (result "failure" str))
 
 ;; create a string indicating success:
-(define (success xexpr) (result "success" (xexpr->string xexpr)))
+(define (success str) (result "success" str))
 
 ;; create a string indicating an internal error:
 ;;(define (internal-error xexpr) (result "internal-error" (xexpr->string xexpr)))
