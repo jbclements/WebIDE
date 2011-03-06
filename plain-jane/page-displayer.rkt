@@ -111,5 +111,8 @@
 
 #;(url->xml "http://brinckerhoff.org/tmp/tiny-lab.xml")
 
-(serve/servlet start)
+(serve/servlet start
+               #:port 8025
+               #:listen-ip #f
+               #:command-line? #t)
 
