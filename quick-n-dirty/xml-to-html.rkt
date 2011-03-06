@@ -9,8 +9,7 @@
          xml->steps
          pcon
          step->evaluators
-         parse-evaluator
-         (struct-out evaluator))
+         parse-evaluator)
 
 ;; read the lab xml from a path
 (define (path->xml path)
@@ -80,16 +79,14 @@
 (define (parse-evaluator ev)
   (match ev
     [`(w1:evaluator (@ ,@(list-no-order
-                          `(name ,name)
-                          `(labid ,labid)
-                          `(href ,url)))
+                          `(href ,url)
+                          other-attrs
+                          ...))
                     ,(? seg-or-arg? elts) ...)
      (define-values (segs args) (partition seg? elts))
      (evaluator url
-                `(("name" . ,(literal name))
-                  ("labid" . ,(literal labid))
-                  ,@(for/list ([s segs][i (in-naturals)]) (seg->str s i)) 
-                  ,@(map arg->strs args)))]
+                (map arg->strs args) 
+                (for/list ([s segs][i (in-naturals)]) (seg->str s i)))]
     [other (error 'parse-evaluator "badly formed evaluator: ~a" other)]))
 
 (define (seg-or-arg? elt) (member (car elt) '(w1:segid w1:arg)))
@@ -98,16 +95,15 @@
 ;; return the string for a well-formed segid
 (define (seg->str elt idx)
   (match elt
-    ;; in the future, we won't have to make up names here:
-    [`(w1:segid (w1:id ,(? string? segid))) (cons (string-append "seg-" (number->string idx))
-                                                  (userfield segid))]
+    ;; this convention is gross, because the evaluator has to know the names of the segments...
+    [`(w1:segid (w1:id ,(? string? segid))) (cons (string->symbol segid) segid)]
     [other (error 'seg->str "badly formed seg: ~v" elt)]))
 
 ;; return a list containing the name and value of an arg
 (define (arg->strs elt)
   (match elt
-    [`(w1:arg (w1:name ,(? string? name)) (w1:value ,value)) (cons name (literal value))]
-    [`(w1:arg (w1:name ,(? string? name)) (w1:value)) (cons name (literal ""))]
+    [`(w1:arg (w1:name ,(? string? name)) (w1:value ,value)) (cons (string->symbol name) value)]
+    [`(w1:arg (w1:name ,(? string? name)) (w1:value)) (cons (string->symbol name) "")]
     [other (error 'arg->strs "badly formed arg: ~v" elt)]))
 
 
@@ -143,13 +139,8 @@
                                                               (w1:arg (w1:name "a1")
                                                                       (w1:value "v1"))
                                                               (w1:segid (w1:id "b")))))))
-              (list (evaluator "ghi" (list (cons "name" (literal "abc")) 
-                                           (cons "labid" (literal "def"))))
-                    (evaluator "stu" (list (cons "name" (literal "mno"))
-                                           (cons "labid" (literal "pqr"))
-                                           (cons "seg-0" (userfield "a"))
-                                           (cons "seg-1" (userfield "b"))
-                                           (cons "a1" (literal "v1"))))))
+              (list (evaluator "ghi" `() `())
+                    (evaluator "stu" `((a1 . "v1")) `((a . "a") (b . "b")))))
 
 (check-equal? (strip-tag 'w1:br) 'br)
 

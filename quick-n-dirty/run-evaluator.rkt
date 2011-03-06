@@ -1,39 +1,35 @@
 #lang racket
 
-(provide run-evaluator
-         (struct-out success)
-         (struct-out failure)
-         (struct-out serverfail))
+(provide run-evaluator)
 
 (require "shared.rkt"
          web-server/http/request-structs
-         rackunit)
+         rackunit
+         "remote-evaluator-call.rkt")
 
-(struct success () #:transparent)
-(struct failure (msg) #:transparent)
-(struct serverfail (msg) #:transparent)
 
 
 ;; run-evaluator : given a list of bindings and an evaluator,
 ;; run the evaluator on the given form bindings
 (define ((run-evaluator bindings) eval)
   (match eval
-    [(struct evaluator (url args))
-     (define args-text-dict (fill-in-segs args
-                                          bindings))
-     (match url
+    [(struct evaluator (url-string args segs))
+     (define segs-texts (fill-in-segs segs bindings))
+     (match url-string
        ;; blecch, terrible URL decision:
        ["evaluator://RegExEvaluator" 
-        (regex-evaluator args-text-dict)]
+        (regex-evaluator args segs-texts)]
        [other 
-        (error 'run-evaluator "can't handle evaluator url ~s" url)])]))
+        (remote-evaluator-call url-string args segs-texts)])]))
 
 
 ;; regex-evaluator : performs a regular expression check
-(define (regex-evaluator args-text-dict)
-  (match-let ([(list rx fail-msg user-text)
-               (fetch-args-text args-text-dict '("regex" "failed-message" "seg-0"))])
-    (cond [(regexp-match (regexp rx) user-text) (success)]
+(define (regex-evaluator args-texts segs-texts)
+  (match-let ([(list rx fail-msg)
+               (fetch-args-text args-texts '(regex failed-message))]
+              [(list (cons dont-care user-text))
+               segs-texts])
+    (cond [(regexp-match (pregexp rx) user-text) (success)]
           [else (failure fail-msg)])))
 
 ;; fetch a list of elements from a dict; signal errors if missing
@@ -47,20 +43,14 @@
 ;; take the argument specification from an evaluator, and 
 ;; plug in the strings obtained from the user. produce a mapping from 
 ;; strings to strings
-(define (fill-in-segs args bindings)
-  (define binding-finder (find-binding bindings))
-  (dict-map args (convert-1arg binding-finder)))
-
-;; (string->string) -> (or/c literal? userfield?) -> string?
-(define ((convert-1arg binding-finder) name literal-or-userfield)
-  (match literal-or-userfield
-    [(struct literal (str)) (cons name str)]
-    [(struct userfield (segid)) (cons name (binding-finder segid))]))
+(define (fill-in-segs segs bindings)
+  (for/list ([s (in-list segs)])
+    (cons (car s) (find-binding bindings (cdr s)))))
 
 ;; (listof form:binding) -> string -> string
 ;; find a binding with the given name. There must be exactly one, and it
 ;; must be a "form binding".
-(define ((find-binding bindings) name)
+(define (find-binding bindings name)
   (match (filter (lambda (f) (equal? (string->bytes/utf-8 name) (binding-id f)))
                  bindings)
     [(list) (error 'find-binding "no segment found with name: ~a" name)]
@@ -69,17 +59,21 @@
      (error 'find-binding "more than one segment found with name: ~a" name)]))
 
 
-(check-equal? ((convert-1arg (lambda (x) "bogus")) "abc" (literal "def"))
-              (cons "abc" "def"))
-(check-equal? ((convert-1arg (lambda (x) "bogus")) "abc" (userfield "def"))
-              (cons "abc" "bogus"))
-
-(check-equal? (regex-evaluator '(("regex" . "abc") 
-                                 ("seg-0" . "deabcf")
-                                 ("failed-message" . "z")))
+(check-equal? (regex-evaluator `((regex . "abc")
+                                 (failed-message . "z"))
+                               `((unknown . "deabcf")))
               (success))
-(check-equal? (regex-evaluator '(("regex" . "abc")
-                                 ("seg-0" . "deabf")
-                                 ("failed-message" . "z")))
+(check-equal? (regex-evaluator '((regex . "abc")
+                                 (failed-message . "z"))
+                               `((unknown . "deabf")))
+              (failure "z"))
+
+(check-equal? (regex-evaluator '((regex . "^\\s*abc")
+                                 (failed-message . "z"))
+                               `((unknown . "   abc   ")))
+              (success))
+(check-equal? (regex-evaluator '((regex . "^\\s*abc")
+                                 (failed-message . "z"))
+                               `((unknown . "   abf   ")))
               (failure "z"))
 

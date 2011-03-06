@@ -6,13 +6,15 @@
          "response-sxml.rkt"
          "xml-to-html.rkt"
          "run-evaluator.rkt"
+         "shared.rkt"
          rackunit)
 
 (define tiny-lab-path "/Users/clements/trac-webide/labs/JBCJava/tiny-lab.xml")
 (define tiny-with-box-path "/Users/clements/trac-webide/labs/JBCJava/tiny-with-box.xml")
 (define if-lab-path "/Users/clements/trac-webide/labs/if.xml")
+(define has-evaluator-path "/Users/clements/trac-webide/labs/JBCJava/has-evaluator.xml")
 
-(define sample-lab (path->xml if-lab-path))
+(define sample-lab (path->xml has-evaluator-path #;if-lab-path))
 
 ;; turn a body sxml into a top sxml
 (define (top-wrap sxml)
