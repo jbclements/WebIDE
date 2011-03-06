@@ -5,17 +5,18 @@
          "apat.rkt"
          "shared.rkt")
 
-(provide path->xml
+(provide port->xml
          xml->steps
          pcon
          step->evaluators
          parse-evaluator)
 
-;; read the lab xml from a path
-(define (path->xml path)
-  (call-with-input-file path
-    (lambda (port)
-      (ssax:xml->sxml port `((w1 . "http://www.web-ide.org/namespaces/labs/1"))))))
+(define webide-namespace "http://www.web-ide.org/namespaces/labs/1")
+
+
+;; read the lab xml from a port
+(define (port->xml port)
+  (ssax:xml->sxml port `((w1 . ,webide-namespace))))
 
 ;; extract the steps from a lab
 (define (xml->steps lab-xml)
@@ -25,6 +26,8 @@
 (define (pcon content)
   (pre-post-order content stylesheet))
 
+;; this stylesheet provides transformations from 
+;; webide XML elements to HTML elements
 (define stylesheet
   (list
    [apat (w1:step (name . others) . content)
@@ -32,18 +35,19 @@
    ;; eat the evaluators
    [apat (w1:evaluator any . content)
          ""]
+   ;; segments become textareas
    [apat (w1:segment (id width height . others) . content)
          `(textarea  (@ (name ,id)
                         (width ,width)
                         (height ,height))
                      "" ,@content)]
    ;; tables
-   [apat (w1:add attrs . content)
-         `(td . ,content)]
    [apat (w1:labtable (rows cols . otherattrs) . elts)
          `(table (@ (rows ,rows) (cols ,cols))
                  ,@(regroup rows cols elts))]
-   ;; code
+   [apat (w1:add attrs . content)
+         `(td . ,content)]
+   ;; code tag becomes pre tag
    [apat (w1:code attrs . content)
          `(pre (@ ,@attrs) ,@content)]
    ;; don't process attributes or text
@@ -124,6 +128,7 @@
     [(list match rhs) (string->symbol rhs)]
     [false (error 'strip-tag "tag without prefix: ~a" s)]))
 
+;; TEST CASES
 
 (check-equal? (num-attr '((a "13") (b "14")) 'a) 13)
 (check-equal? (num-attr '((a "13") (b "14")) 'b) 14)
