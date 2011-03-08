@@ -1,7 +1,6 @@
 #lang racket
 
-(require web-server/servlet-env
-         web-server/servlet/web
+(require web-server/servlet/web
          web-server/http/request-structs
          web-server/http/xexpr
          web-server/formlets         
@@ -9,8 +8,7 @@
          "response-sxml.rkt"
          "xml-to-html.rkt"
          "run-evaluator.rkt"
-         "shared.rkt"
-         rackunit)
+         "shared.rkt")
 
 (define tiny-lab-path "/Users/clements/trac-webide/labs/JBCJava/tiny-lab.xml")
 (define tiny-with-box-path "/Users/clements/trac-webide/labs/JBCJava/tiny-with-box.xml")
@@ -19,9 +17,9 @@
 
 (define if-url "http://brinckerhoff.org/tmp/if.xml")
 
-;; the initial startup:
-(define (start dc)
-  (run-from-url (request-url-from-user)))
+(provide run-from-url
+         run-lab
+         request-url-from-user)
 
 (define (sample-start)
   (run-lab (path->xml has-evaluator-path #;if-lab-path)))
@@ -111,8 +109,4 @@
 
 #;(url->xml "http://brinckerhoff.org/tmp/tiny-lab.xml")
 
-(serve/servlet start
-               #:port 8025
-               #:listen-ip #f
-               #:command-line? #t)
 

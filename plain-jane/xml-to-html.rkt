@@ -13,14 +13,15 @@
 
 (define webide-namespace "http://www.web-ide.org/namespaces/labs/1")
 
+(define webide-ns `((w1 . ,webide-namespace)))
 
 ;; read the lab xml from a port
 (define (port->xml port)
-  (ssax:xml->sxml port `((w1 . ,webide-namespace))))
+  (ssax:xml->sxml port webide-ns))
 
-;; extract the steps from a lab
-(define (xml->steps lab-xml)
-  ((sxpath '(w1:lab w1:step)) lab-xml))
+;; extract the steps from a lab *that uses w1 as a namespace prefix*
+(define (xml->steps lab-sxml)
+  ((sxpath '(w1:lab w1:step)) lab-sxml))
 
 ;; turn a step into html
 (define (pcon content)
@@ -194,3 +195,9 @@ def"))
 (check-equal? (pcon `(w1:step (@ (name "bob")) "a step"))
               `(div (h3 "step name: " "bob")
                     "a step"))
+
+
+(check-equal? (xml->steps `(*TOP* (@ (*NAMESPACES* (w1 ,webide-namespace)))
+                                  (w1:lab (w1:step "abc") (w1:step "def"))))
+              '((w1:step "abc") (w1:step "def")))
+
