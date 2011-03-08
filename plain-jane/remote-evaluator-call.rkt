@@ -58,21 +58,20 @@
 (define (fail-response? r)
   (equal? (hash-ref r 'status) "failure"))
 
-(define amazon-evaluator
-  "http://184.73.238.21/webide/evaluators/JavaEvaluator/JavaEvaluator.php")
-
-;; why is the equal? check failing? ah well.
-
-(define (amazon-success-equal? args textfields)
-  (check-equal? (remote-evaluator-call amazon-evaluator args textfields)
-                (success)))
-
-(define (check-amazon-fail? args textfields)
-  (check-equal? (failure? (remote-evaluator-call amazon-evaluator args textfields))
-                #true))
-
-(check-equal? (make-hasheq '((a . "b") (c . "d")))
-              (make-hasheq '((a . "b") (c . "d"))))
-
-(amazon-success-equal? sample-args '((groupC . "group = 'C';")))
-(check-amazon-fail? sample-args '((groupC . "234;")))
+(define (run-tests)
+  (define amazon-evaluator
+    "http://184.73.238.21/webide/evaluators/JavaEvaluator/JavaEvaluator.php")
+  
+  (define (amazon-success-equal? args textfields)
+    (check-equal? (remote-evaluator-call amazon-evaluator args textfields)
+                  (success)))
+  
+  (define (check-amazon-fail? args textfields)
+    (check-equal? (failure? (remote-evaluator-call amazon-evaluator args textfields))
+                  #true))
+  
+  (check-equal? (make-hasheq '((a . "b") (c . "d")))
+                (make-hasheq '((a . "b") (c . "d"))))
+  
+  (amazon-success-equal? sample-args '((groupC . "group = 'C';")))
+  (check-amazon-fail? sample-args '((groupC . "234;"))))

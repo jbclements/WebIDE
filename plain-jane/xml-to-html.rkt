@@ -1,7 +1,7 @@
 #lang racket
 
 (require (planet clements/sxml2)
-         (except-in rackunit foldts)
+         rackunit
          "apat.rkt"
          "shared.rkt")
 

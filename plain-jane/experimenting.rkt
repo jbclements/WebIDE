@@ -27,14 +27,13 @@
 (define intbox 13)
 
 (define (box . content) 
-  `(w1:))
+  "")
 
 (define the-lab 
-  `(*TOP* 
-    (|@| (*NAMESPACES* (n "http://www.web-ide.org/namespaces/labs/1")))
-    , @lab["First C Lab"]{
-    , @step{
- @h3{Integers}
+  (list '*TOP* 
+    '(|@| (*NAMESPACES* (w1 "http://www.web-ide.org/namespaces/labs/2")))
+     @lab["First C Lab"]{
+     @step["Integers"]{ 
  @p{
  The first step in any programming task is to think about the kinds of 
  data that you need, and the first step in learning a new programming 
@@ -65,7 +64,12 @@
  }}))
 
 
-(define (start request)
+(require (file "/Users/clements/trac-webide/labs/validate-lib.rkt"))
+
+(validate-sxml the-lab)
+
+
+#;(define (start request)
   (run-lab the-lab))
 
-(serve/servlet start)
+#;(serve/servlet start)
