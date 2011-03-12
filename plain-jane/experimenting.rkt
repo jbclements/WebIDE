@@ -1,9 +1,11 @@
 #lang at-exp racket
 
-(require web-server/servlet-env)
+(require web-server/servlet-env
+         rackunit)
 
 (require "page-displayer.rkt"
          #;(file "/Users/clements/trac-webide/labs/validate-lib.rkt"))
+
 
 
 ;; FIXME: 
@@ -16,7 +18,7 @@
   (list '*TOP* 
     '(|@| (*NAMESPACES* (w1 "http://www.web-ide.org/namespaces/labs/2")))
      @lab["First C Lab"]{
-     @step["Integers"]{ 
+     @step["Integers" #:dependencies `()]{ 
  
  The first step in any programming task is to think about the kinds of 
  data that you need, and the first step in learning a new programming 
@@ -30,10 +32,11 @@
  Try entering an integer in this box:
  @box&button[intbox]
  
- If you like, you can try a bunch of different integers. Are there
+ @;{HOLD OFF ON THIS UNTIL YOUV'E GOT A REAL PARSER...
+    If you like, you can try a bunch of different integers. Are there
  things that you expect to be integers that aren't? If you're unsure
  about whether something is an integer in C, you can come back and use
- this box.
+ this box.}
  
  @h3{Arithmetic operations}
  
@@ -95,13 +98,40 @@
  Translate the given English into a C expression, and then enter the expected integer result:
  @buttonregion[
  @table[
- (list "ten plus the result of 4 divided by 2" (box 10+4/2box) (box (intbox 12)))
- (list "the result of four plus five, divided by three" (box 4+5/3box) (box (intbox 3)))
+ (list "ten plus the result of 4 divided by 2" (box 10+4/2box) (box (litbox 12)))
+ (list "the result of four plus five, divided by three" (box 4+5/3box) (box (litbox 3)))
  (list "four times the result of five minus two, divided by six" (box 4*5-2/6box) (box (intbox 2)))]]
  }}))
 
+
+;; accepts everything; FOR TESTING ONLY...
+(define (bogus str) #t)
+
 (define (intbox str)
   (only-regexp "[+-]?[0-9]+"))
+
+(define plusbox bogus)
+(define 4*5-2/6box bogus)
+(define 4+5/3box bogus)
+(define 10/5box bogus)
+(define 9/4box bogus)
+(define 3/12box bogus)
+(define 15+16+23box bogus)
+(define 10+4/2box bogus)
+
+(define (litbox lit) bogus)
+
+;; given a list of lists of cell contents, produce a table:
+(define (table . rows)
+  (cons 'w1:table
+        (for/list ([r (in-list rows)])
+          `(w1:tr ,@(for/list ([c (in-list r)])
+                      `(w1:td ,c))))))
+
+(check-equal? (table (list 3 4) (list 5 6))
+              `(w1:table (w1:tr (w1:td 3) (w1:td 4))
+                         (w1:tr (w1:td 5) (w1:td 6))))
+
 
 ;; wrap a string with whitespace padding to make a whole-line matcher
 (define (only-regexp pxstr)
@@ -109,9 +139,15 @@
     (regexp-match (pregexp (string-append "^\\s*" pxstr "\\s*$")) str)))
 
 (define (lab name . content) 
-  `(w1:lab (|@| (name ,name)) ,@content))
-(define (step name . content)
-  `(w1:step (|@| (name ,name)) ,@content))
+  `(w1:lab (|@| (name ,name))
+           ,@dependencies
+           ,@evaluators
+           ,@content))
+(define (step name 
+             #:dependencies [dependencies `()] 
+             #:evaluators [evaluators `()]
+             . content)
+  `(w1:step (|@| (name ,name)) (w1:content ,@content)))
 (define (h3 . content) (cons 'w1:h3 content))
 
 ;; a short-cut for defining tag-like functions:
@@ -126,8 +162,6 @@
 (define-tag-helper p)
 (define-tag-helper code)
 
-(define intbox 13)
-
 ;; a problem consists of a ... an evaluator only?
 
 ;; an evaluator contains a ... well, what if we just put a function in there, for now?
@@ -135,29 +169,39 @@
 ;; in that case, "box" should just emit an evaluator element to the collector, and
 ;; spit out a fresh textfield. This only works for single-box evaluators.
 (define (box eval-fun)
-  (let ([new-segid (next-segid)])
+  (let ([new-textfield-id (next-textfield-id)])
     ((current-eval-collector) 'add `(evaluator "evaluator://racketfun" 
-                                               ((evalfun ,eval-fun))
-                                               (new-segid)))
-    `(textfield ,new-segid)))
+                                               (|@| (evalfun "FUNNER" #;,eval-fun))
+                                               (new-textfield-id)))
+    `(textfield ,new-textfield-id)))
+
+;; a box with a button right next to it:
+(define (box&button eval-fun)
+  (buttonregion (box eval-fun)))
 
 
 ;; each evaluator must be declared in a buttonregion, which collects the evaluators 
 ;; defined therein. 
-(define-syntax (buttonregion stx)
+
+
+(define-syntax (define-region-mechanism region-creator helper-fun)
   (syntax-case stx ()
-    [(_ . content)
-     #'(buttonregion-helper (lambda () (list . content)))]))
+    [(_ region-creator helper-fun) 
+     (begin
+       (define-syntax (buttonregion stx)
+         (syntax-case stx ()
+           [(_ . content)
+            #'(buttonregion-helper (lambda () (list . content)))]))
+       
+       (define (buttonregion-helper thunk)
+         (define new-eval-collector (make-eval-collector))
+         (parameterize ([current-eval-collector new-eval-collector])
+           (cons 'w1:div (append (thunk)
+                                 (list `(w1:button ,@(new-eval-collector 'get)))))))
+     
+     (define current-eval-collector (make-parameter #f)))]))
 
-(define (buttonregion-helper thunk)
-  (define new-eval-collector (make-eval-collector))
-  (parameterize ([current-eval-collector new-eval-collector])
-    (cons 'w1:div (append (thunk)
-                          (list `(button ,@(new-eval-collector 'get)))))))
-
-(define current-eval-collector (make-parameter #f))
-
-(define (make-eval-collector)
+(define (make-collector)
   (let ([l `()])
     (lambda args
       (match args
@@ -174,13 +218,23 @@
 
 
 (check-equal?
- (buttonregion "abc" ()))
+ (buttonregion "abc") 
+ `(w1:div "abc"
+          (w1:button)))
+
+
+;; GENERATE FRESH TEXTFIELD-IDs
+
+(define textfield-ctr 0)
+(define (next-textfield-id)
+  (set! textfield-ctr (+ textfield-ctr 1))
+  (format "text-field-~v" textfield-ctr))
 
 
 
 (require (file "/Users/clements/trac-webide/labs/validate-lib.rkt"))
 
-(validate-sxml the-lab)
+(validate-sxml (the-lab))
 
 
 #;(define (start request)
