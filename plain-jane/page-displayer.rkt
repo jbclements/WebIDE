@@ -57,7 +57,9 @@
   (let loop ([evaluators evaluators])
     (cond [(empty? evaluators) (show-steps steps)]
           [else 
-           (match (ev (first evaluators))
+           (match (let ([ans (ev (first evaluators))])
+                    (printf "result of evaluator: ~s\n" ans)
+                    ans)
              [(struct success ()) (loop (rest evaluators))]
              [(struct failure (msg)) (fail-page msg)])])))
 

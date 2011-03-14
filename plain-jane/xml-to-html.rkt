@@ -33,6 +33,31 @@
   (list
    [apat (w1:step (name . others) . content)
          `(div (h3 "step name: " ,name) . ,content)]
+   ;; eat the evaluators for display
+   [apat (w1:evaluator any . content)
+         ""]
+   ;; eat the buttons for now...
+   [apat (w1:button attrs . elts)
+         "*THERE WOULD BE A BUTTON HERE*"]
+   ;; userfields become textareas
+   [apat (w1:userfield (id . others) . content)
+         `(textarea  (@ (name ,id))
+                     "" ,@content)]
+   ;; code tag becomes pre tag
+   [apat (w1:code attrs . content)
+         `(pre (@ ,@attrs) ,@content)]
+   ;; don't process attributes or text
+   `(@ *preorder* . ,(lambda args args))
+   `(*text* . ,(lambda (t a) a))
+   `(*default* . ,(lambda (tag . elts) 
+                    (cons (strip-tag tag) elts)))))
+
+
+;; version 1 stylesheet:
+#;(define stylesheet
+  (list
+   [apat (w1:step (name . others) . content)
+         `(div (h3 "step name: " ,name) . ,content)]
    ;; eat the evaluators
    [apat (w1:evaluator any . content)
          ""]
@@ -162,34 +187,14 @@
 (check-equal? (pcon `(w1:b (@ (awesomeness "35")) "trip"))
               `(b (@ (awesomeness "35")) "trip"))
 
-(check-equal? (pcon `(w1:add "bc"))
-              `(td "bc"))
 
-(check-equal? (regroup "3" "2" 
-                       `((td "a1")
-                         (td "a2")
-                         (td "a3")
-                         (td "a4")
-                         (td "a5")
-                         (td "a6")))
-              `((tr (td "a1") (td "a2"))
-                (tr (td "a3") (td "a4"))
-                (tr (td "a5") (td "a6"))))
 
-(check-equal? (pcon `(w1:labtable (@ (rows "2") (cols "1"))
-                                  (w1:add "a")
-                                  (w1:add "b")))
-              `(table (@ (rows "2") (cols "1"))
-                      (tr (td "a"))
-                      (tr (td "b"))))
+
 
 (check-equal? (pcon `(w1:code "abc
 def"))
               `(pre (@) "abc
 def"))
-
-(check-equal? (pcon `(w1:segment (@ (id "boo")(width "20") (height "1"))))
-              `(textarea (@ (name "boo")(width "20") (height "1")) ""))
 
 
 (check-equal? (pcon `(w1:step (@ (name "bob")) "a step"))
@@ -200,4 +205,31 @@ def"))
 (check-equal? (xml->steps `(*TOP* (@ (*NAMESPACES* (w1 ,webide-namespace)))
                                   (w1:lab (w1:step "abc") (w1:step "def"))))
               '((w1:step "abc") (w1:step "def")))
+
+;; tests for version 1 spec
+#;(check-equal? (pcon `(w1:add "bc"))
+              `(td "bc"))
+
+#;(check-equal? (regroup "3" "2" 
+                       `((td "a1")
+                         (td "a2")
+                         (td "a3")
+                         (td "a4")
+                         (td "a5")
+                         (td "a6")))
+              `((tr (td "a1") (td "a2"))
+                (tr (td "a3") (td "a4"))
+                (tr (td "a5") (td "a6"))))
+
+#;(check-equal? (pcon `(w1:labtable (@ (rows "2") (cols "1"))
+                                  (w1:add "a")
+                                  (w1:add "b")))
+              `(table (@ (rows "2") (cols "1"))
+                      (tr (td "a"))
+                      (tr (td "b"))))
+
+#;(check-equal? (pcon `(w1:segment (@ (id "boo")(width "20") (height "1"))))
+              `(textarea (@ (name "boo")(width "20") (height "1")) ""))
+
+
 

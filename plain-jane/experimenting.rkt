@@ -4,6 +4,7 @@
          rackunit)
 
 (require "page-displayer.rkt"
+         "evaluator-collector.rkt"
          #;(file "/Users/clements/trac-webide/labs/validate-lib.rkt"))
 
 
@@ -140,14 +141,12 @@
 
 (define (lab name . content) 
   `(w1:lab (|@| (name ,name))
-           ,@dependencies
-           ,@evaluators
            ,@content))
 (define (step name 
              #:dependencies [dependencies `()] 
              #:evaluators [evaluators `()]
              . content)
-  `(w1:step (|@| (name ,name)) (w1:content ,@content)))
+  `(pre-step (|@| (name ,name)) (w1:content ,@content)))
 (define (h3 . content) (cons 'w1:h3 content))
 
 ;; a short-cut for defining tag-like functions:
@@ -162,6 +161,10 @@
 (define-tag-helper p)
 (define-tag-helper code)
 
+;; We'll clean these up in a pass over the whole body
+(define (buttonregion #:label [label "go"] . elts) 
+  `(buttonregion (|@| (label ,label)) ,@elts))
+
 ;; a problem consists of a ... an evaluator only?
 
 ;; an evaluator contains a ... well, what if we just put a function in there, for now?
@@ -169,81 +172,46 @@
 ;; in that case, "box" should just emit an evaluator element to the collector, and
 ;; spit out a fresh textfield. This only works for single-box evaluators.
 (define (box eval-fun)
-  (let ([new-textfield-id (next-textfield-id)])
-    ((current-eval-collector) 'add `(evaluator "evaluator://racketfun" 
-                                               (|@| (evalfun "FUNNER" #;,eval-fun))
-                                               (new-textfield-id)))
-    `(textfield ,new-textfield-id)))
+  (let ([new-textfield-id (next-textfield-id)]
+        [new-evaluator-id (next-evaluator-id)])
+    `(w1:div
+      (w1:evaluator (|@| (href "evaluator://racketfun")
+                         #;(evalfun  "TMP-FUN" #;,eval-fun)
+                         (name ,new-evaluator-id))
+                 (w1:userfieldArg (w1:name "userText") 
+                                  (w1:value ,new-textfield-id)))
+      (w1:userfield (|@| (id ,new-textfield-id))))))
 
 ;; a box with a button right next to it:
 (define (box&button eval-fun)
   (buttonregion (box eval-fun)))
 
-
-(define-syntax (define-region-mechanism stx)
-  (syntax-case stx ()
-    [(_ region-creator assembly-fun) 
-     (begin
-       (define-syntax (region-creator stx)
-         (syntax-case stx ()
-           [(_ . content)
-            #'(helper-fun (lambda () (list . content)))]))
-       
-       (define (region-helper thunk)
-         (define new-collector (make-collector))
-         (parameterize ([current-region-collector new-collector])
-           (assembly-fun (thunk) (new-eval-collector 'get))))
-     
-     (define current-region-collector (make-parameter #f)))]))
-
-
-;; each evaluator must be declared in a buttonregion, which collects the evaluators 
-;; defined therein. 
-(define-region-mechanism buttonregion button-assembly-fun)
-
-(define (button-assembly-fun body-list eval-list)
-  (cons 'w1:div (append body-list
-                        (list `(w1:button ,@eval-list)))))
-
-;; each evaluator must be declared in a 
-
-(define (make-collector)
-  (let ([l `()])
-    (lambda args
-      (match args
-        [(list 'add new-collector) (set! l (cons new-collector l))]
-        [(list 'get) (reverse l)]))))
-
-(let ([m (make-eval-collector)])
-  (check-equal? (m 'get) '())
-  (m 'add 14)
-  (check-equal? (m 'get) '(14))
-  (check-equal? (m 'get) '(14))
-  (m 'add "foo")
-  (check-equal? (m 'get) '(14 "foo")))
-
-
-(check-equal?
- (buttonregion "abc") 
- `(w1:div "abc"
-          (w1:button)))
-
-
-;; GENERATE FRESH TEXTFIELD-IDs
+;; GENERATE FRESH TEXTFIELD-IDs and EVALUATOR-IDs
 
 (define textfield-ctr 0)
 (define (next-textfield-id)
   (set! textfield-ctr (+ textfield-ctr 1))
   (format "text-field-~v" textfield-ctr))
 
+(define evaluator-ctr 0)
+(define (next-evaluator-id)
+  (set! evaluator-ctr (+ evaluator-ctr 1))
+  (format "evaluator-~v" evaluator-ctr))
+
+
+
+;; POST-PASS TO COLLECT EVALUATORS
+(define collected 
+  (collect-evaluators (the-lab)))
+
+
 
 
 (require (file "/Users/clements/trac-webide/labs/validate-lib.rkt"))
 
-(validate-sxml (the-lab))
+(validate-sxml collected)
 
+(define (start request)
+  (run-lab collected))
 
-#;(define (start request)
-  (run-lab the-lab))
-
-#;(serve/servlet start)
+(serve/servlet start)
