@@ -32,7 +32,7 @@
  Try entering an integer in this box:
  @box&button[intbox]
  
- @;{HOLD OFF ON THIS UNTIL YOUV'E GOT A REAL PARSER...
+ @;{HOLD OFF ON THIS UNTIL YOU'VE GOT A REAL PARSER...
     If you like, you can try a bunch of different integers. Are there
  things that you expect to be integers that aren't? If you're unsure
  about whether something is an integer in C, you can come back and use
@@ -180,26 +180,32 @@
   (buttonregion (box eval-fun)))
 
 
-;; each evaluator must be declared in a buttonregion, which collects the evaluators 
-;; defined therein. 
-
-
-(define-syntax (define-region-mechanism region-creator helper-fun)
+(define-syntax (define-region-mechanism stx)
   (syntax-case stx ()
-    [(_ region-creator helper-fun) 
+    [(_ region-creator assembly-fun) 
      (begin
-       (define-syntax (buttonregion stx)
+       (define-syntax (region-creator stx)
          (syntax-case stx ()
            [(_ . content)
-            #'(buttonregion-helper (lambda () (list . content)))]))
+            #'(helper-fun (lambda () (list . content)))]))
        
-       (define (buttonregion-helper thunk)
-         (define new-eval-collector (make-eval-collector))
-         (parameterize ([current-eval-collector new-eval-collector])
-           (cons 'w1:div (append (thunk)
-                                 (list `(w1:button ,@(new-eval-collector 'get)))))))
+       (define (region-helper thunk)
+         (define new-collector (make-collector))
+         (parameterize ([current-region-collector new-collector])
+           (assembly-fun (thunk) (new-eval-collector 'get))))
      
-     (define current-eval-collector (make-parameter #f)))]))
+     (define current-region-collector (make-parameter #f)))]))
+
+
+;; each evaluator must be declared in a buttonregion, which collects the evaluators 
+;; defined therein. 
+(define-region-mechanism buttonregion button-assembly-fun)
+
+(define (button-assembly-fun body-list eval-list)
+  (cons 'w1:div (append body-list
+                        (list `(w1:button ,@eval-list)))))
+
+;; each evaluator must be declared in a 
 
 (define (make-collector)
   (let ([l `()])
