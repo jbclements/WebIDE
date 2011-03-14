@@ -146,7 +146,7 @@
              #:dependencies [dependencies `()] 
              #:evaluators [evaluators `()]
              . content)
-  `(pre-step (|@| (name ,name)) (w1:content ,@content)))
+  `(pre-step (|@| (name ,name)) ,@content))
 (define (h3 . content) (cons 'w1:h3 content))
 
 ;; a short-cut for defining tag-like functions:
