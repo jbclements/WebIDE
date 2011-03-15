@@ -5,9 +5,8 @@
 (require "shared.rkt"
          web-server/http/request-structs
          rackunit
-         "remote-evaluator-call.rkt")
-
-
+         "remote-evaluator-call.rkt"
+         "c-evaluator-call.rkt")
 
 ;; run-evaluator : given a list of bindings and an evaluator,
 ;; run the evaluator on the given form bindings
@@ -19,6 +18,8 @@
        ;; blecch, terrible URL decision:
        ["evaluator://RegExEvaluator" 
         (regex-evaluator args segs-texts)]
+       ["evaluator://any-c-int"
+        (any-c-int args segs-texts)]
        [other 
         (remote-evaluator-call url-string args segs-texts)])]))
 

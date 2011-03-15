@@ -8,8 +8,7 @@
 (provide port->xml
          xml->steps
          pcon
-         step->evaluators
-         parse-evaluator)
+         step->evaluators)
 
 (define webide-namespace "http://www.web-ide.org/namespaces/labs/1")
 
@@ -43,9 +42,6 @@
    [apat (w1:userfield (id . others) . content)
          `(textarea  (@ (name ,id))
                      "" ,@content)]
-   ;; code tag becomes pre tag
-   [apat (w1:code attrs . content)
-         `(pre (@ ,@attrs) ,@content)]
    ;; don't process attributes or text
    `(@ *preorder* . ,(lambda args args))
    `(*text* . ,(lambda (t a) a))
@@ -102,22 +98,21 @@
 
 ;; sxml -> evaluator
 (define (step->evaluators step)
-  (map parse-evaluator
+  (map parse-evaluator 
        ((sxpath '(// w1:evaluator)) `(*TOP* ,step))))
 
-;; turn the sxml representation of an evaluator into an evaluator struct
-(define (parse-evaluator ev)
-  (match ev
-    [`(w1:evaluator (@ ,@(list-no-order
-                          `(href ,url)
-                          other-attrs
-                          ...))
-                    ,(? seg-or-arg? elts) ...)
-     (define-values (segs args) (partition seg? elts))
-     (evaluator url
-                (map arg->strs args) 
-                (for/list ([s segs][i (in-naturals)]) (seg->str s i)))]
-    [other (error 'parse-evaluator "badly formed evaluator: ~a" other)]))
+(define (parse-evaluator eval)
+  (match eval
+    [`(w1:evaluator (|@| . ,attrs)
+                    (w1:fixedArg (w1:name ,argname) 
+                                 (w1:value ,argvalue))
+                    ...
+                    (w1:userfieldArg (w1:name ,fieldname)
+                                     (w1:value ,fieldvalue))
+                    ...)
+     (evaluator (cadr (assoc 'href attrs))
+                (map cons (map string->symbol argname) argvalue)
+                (map cons (map string->symbol fieldname) fieldvalue))]))
 
 (define (seg-or-arg? elt) (member (car elt) '(w1:segid w1:arg)))
 (define (seg? elt) (equal? (car elt) 'w1:segid))
@@ -160,18 +155,17 @@
 (check-equal? (num-attr '((a "13") (b "14")) 'b) 14)
 
 
-(check-equal? (step->evaluators `(w1:step "a" (w1:evaluator (@ (name "abc")
-                                                               (labid "def")
-                                                               (href "ghi")))
-                                          (p (b (w1:evaluator (@ (name "mno")
-                                                                 (labid "pqr")
-                                                                 (href "stu"))
-                                                              (w1:segid (w1:id "a"))
-                                                              (w1:arg (w1:name "a1")
-                                                                      (w1:value "v1"))
-                                                              (w1:segid (w1:id "b")))))))
-              (list (evaluator "ghi" `() `())
-                    (evaluator "stu" `((a1 . "v1")) `((a . "a") (b . "b")))))
+(check-equal? (step->evaluators 
+               `(w1:step "a" (w1:evaluator (@ (href "ghi")))
+                         (p (b (w1:evaluator (@ (href "stu"))
+                                             (w1:fixedArg (w1:name "a1")
+                                                     (w1:value "v1"))
+                                             (w1:userfieldArg
+                                              (w1:name "foo") 
+                                              (w1:value "bar")))))))
+              (list (evaluator "ghi" '() '())
+                    (evaluator "stu" '((a1 . "v1"))
+                               '((foo . "bar")))))
 
 (check-equal? (strip-tag 'w1:br) 'br)
 
@@ -193,7 +187,7 @@
 
 (check-equal? (pcon `(w1:code "abc
 def"))
-              `(pre (@) "abc
+              `(code "abc
 def"))
 
 

@@ -31,13 +31,12 @@
  13 is an integer, and so is 0, and so is -146.
  
  Try entering an integer in this box:
- @box&button[intbox]
+ @buttonregion[(box "evaluator://any-c-int" '())]
  
- @;{HOLD OFF ON THIS UNTIL YOU'VE GOT A REAL PARSER...
     If you like, you can try a bunch of different integers. Are there
  things that you expect to be integers that aren't? If you're unsure
  about whether something is an integer in C, you can come back and use
- this box.}
+ this box.
  
  @h3{Arithmetic operations}
  
@@ -50,7 +49,7 @@
  To add @code{3} and @code{4} together, for instance, you can write @code{3 + 4} .
  
  Write an arithmetic expression that uses addition to add two numbers:
- @box&button[plusbox]
+ @buttonregion[(box "evaluator://any-c-addition" '())]
  
  So, what are the gotchas? The biggest one has to do with integer division.
  In C, dividing an integer by an integer produces another integer.  This works
@@ -62,9 +61,9 @@
  
  @buttonregion[
  @table[
- (list (code "10 / 5") (box 10/5box))
- (list (code "9 / 4") (box 9/4box))
- (list (code "3 / 12") (box 3/12box))]]
+ (list (code "10 / 5") (c-parser-box "2"))
+ (list (code "9 / 4") (c-parser-box "2"))
+ (list (code "3 / 12") (c-parser-box "0"))]]
  
  
  @h3{Nested Operations}
@@ -74,7 +73,7 @@
  so is @code{20 * 14 * 3}.
  
  Write the C expression that adds fifteen, sixteen, and twenty-three:
- @box&button[15+16+23box]
+ @buttonregion[(c-parser-box "15+16+23")]
  
  What about operators such as division and subtraction? These operators are not 
  associative. That is, @code{(20 / 19) / 19} does not produce the same value as 
@@ -99,28 +98,19 @@
  Translate the given English into a C expression, and then enter the expected integer result:
  @buttonregion[
  @table[
- (list "ten plus the result of 4 divided by 2" (box 10+4/2box) (box (litbox 12)))
- (list "the result of four plus five, divided by three" (box 4+5/3box) (box (litbox 3)))
- (list "four times the result of five minus two, divided by six" (box 4*5-2/6box) (box (intbox 2)))]]
- }}))
-
-
-;; accepts everything; FOR TESTING ONLY...
-(define (bogus str) #t)
+ (list "ten plus the result of 4 divided by 2" 
+       (c-parser-box "10+(4/2)") 
+       (c-parser-box "12"))
+ (list "the result of four plus five, divided by three" 
+       (c-parser-box "(4+5)/3")
+       (c-parser-box "3"))
+ (list "four times the result of five minus two, divided by six"
+       (c-parser-box "(4*(5-2))/6")
+       (c-parser-box "2"))]]}}))
 
 (define (intbox str)
   (only-regexp "[+-]?[0-9]+"))
 
-(define plusbox bogus)
-(define 4*5-2/6box bogus)
-(define 4+5/3box bogus)
-(define 10/5box bogus)
-(define 9/4box bogus)
-(define 3/12box bogus)
-(define 15+16+23box bogus)
-(define 10+4/2box bogus)
-
-(define (litbox lit) bogus)
 
 ;; given a list of lists of cell contents, produce a table:
 (define (table . rows)
@@ -165,26 +155,24 @@
 (define (buttonregion #:label [label "go"] . elts) 
   `(buttonregion (|@| (label ,label)) ,@elts))
 
-;; a problem consists of a ... an evaluator only?
-
-;; an evaluator contains a ... well, what if we just put a function in there, for now?
-
 ;; in that case, "box" should just emit an evaluator element to the collector, and
 ;; spit out a fresh textfield. This only works for single-box evaluators.
-(define (box eval-fun)
+(define (box url args)
   (let ([new-textfield-id (next-textfield-id)]
         [new-evaluator-id (next-evaluator-id)])
     `(w1:div
-      (w1:evaluator (|@| (href "evaluator://racketfun")
-                         #;(evalfun  "TMP-FUN" #;,eval-fun)
-                         (name ,new-evaluator-id))
-                 (w1:userfieldArg (w1:name "userText") 
-                                  (w1:value ,new-textfield-id)))
+      (pre-evaluator 
+       (|@| (href ,url)
+            (name ,new-evaluator-id))
+       ,@(map arg->eval-arg args)
+       (w1:userfieldArg (w1:name "userText") 
+                        (w1:value ,new-textfield-id)))
       (w1:userfield (|@| (id ,new-textfield-id))))))
 
-;; a box with a button right next to it:
-(define (box&button eval-fun)
-  (buttonregion (box eval-fun)))
+(define (arg->eval-arg pr)
+  (match pr
+    [(list a b)
+     `(w1:fixedArg (w1:name ,(symbol->string a)) (w1:value ,b))]))
 
 ;; GENERATE FRESH TEXTFIELD-IDs and EVALUATOR-IDs
 
@@ -197,6 +185,20 @@
 (define (next-evaluator-id)
   (set! evaluator-ctr (+ evaluator-ctr 1))
   (format "evaluator-~v" evaluator-ctr))
+
+
+;; a box that should match a c-parsed representation
+(define (c-parser-box expected)
+  (box "evaluator://c-parser-match"
+       `((pattern ,expected))))
+
+(define bogusbox 
+  (box "this is not a url" '()))
+
+;; a box with a button right next to it:
+(define (box&button url args)
+  (buttonregion (box url args)))
+
 
 
 
