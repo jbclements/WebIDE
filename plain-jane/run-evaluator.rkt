@@ -20,8 +20,12 @@
         (regex-evaluator args segs-texts)]
        ["evaluator://any-c-int"
         (any-c-int args segs-texts)]
+       ["evaluator://any-c-addition"
+        (any-c-addition args segs-texts)]
+       [(pregexp "^http://") 
+        (remote-evaluator-call url-string args segs-texts)]
        [other 
-        (remote-evaluator-call url-string args segs-texts)])]))
+        (error 'run-evaluator "unrecognized URL schema: ~s" url-string)])]))
 
 
 ;; regex-evaluator : performs a regular expression check
