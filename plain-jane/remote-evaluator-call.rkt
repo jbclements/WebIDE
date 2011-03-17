@@ -4,9 +4,10 @@
          net/url
          net/uri-codec
          rackunit
-         "shared.rkt")
+         "../evaluators/shared.rkt")
 
-(provide remote-evaluator-call)
+(provide remote-evaluator-call
+         post-bytes->args-n-fields)
 
 (define standard-headers '("Content-Type: application/x-www-form-urlencoded"))
 
@@ -51,12 +52,7 @@
 ;; composing these two yields the identity, for assoc lists mapping symbols to
 ;; strings.
 
-;; this test case shouldn't depend on the ordering of the elements of the list, but 
-;; it does.
-(check-equal? (jsexpr->args-n-fields (make-eval-jsexpr '((a . "b") (c . "d"))
-                                                       '((e . "f") (g . "h"))))
-              (list '((a . "b") (c . "d"))
-                    '((g . "h") (e . "f"))))
+
 
 ;; THIS LAYER MAPS JSEXPRS TO JSON-STRINGS
 
@@ -80,6 +76,8 @@
                                                standard-headers))
   ;; what about timeouts?
   (define headers (purify-port eval-response-port))
+  ;; strange... why do our servers always come back with text/html as 
+  ;; a mime type?
   (define reply-code 
     (match (regexp-match #px"^HTTP/[^ ]* ([0-9]+)" headers)
       [(list match digits) (string->number digits)]
@@ -87,6 +85,7 @@
   (cond [(= reply-code 200)
          (define reply (first (regexp-match #px".*" eval-response-port)))
          (close-input-port eval-response-port)
+         (printf "reply-bytes : ~v\n" reply)
          (bytes->string/utf-8 reply)]
         [else 
          (error 'remote-evaluator-call/bytes
@@ -97,9 +96,11 @@
 ;; given a string, format it as the bytes to be attached to the post
 ;; request
 (define (str->post-bytes str)
+  ;; I think this form-urlencoded-encoded is totally unnecessary; I think the 
+  ;; json encoding is already clean.
   (string->bytes/utf-8 (string-append "request=" (form-urlencoded-encode str))))
 
-
+;; translate the post-bytes back into a string
 (define (post-bytes->str post-bytes)
   ;; if requests get long, we might not want to do this on byte-strings, but
   ;; rather on ports:
@@ -108,14 +109,26 @@
     [other (error 'post-bytes->str "badly formatted request: ~s" other)]))
 
 
+;; SERVER-SIDE FUNCTION:
+
+;; given post-bytes, map it back to a list of two association lists.
+(define (post-bytes->args-n-fields post-bytes)
+  (jsexpr->args-n-fields (json->jsexpr (post-bytes->str post-bytes))))
+
 (check-equal? (post-bytes->str (str->post-bytes "a\"oo\"oht& ;h.th"))
               "a\"oo\"oht& ;h.th")
 
 
+;; this test case shouldn't depend on the ordering of the elements of the list, but 
+;; it does.
+(check-equal? (jsexpr->args-n-fields (make-eval-jsexpr '((a . "b") (c . "d"))
+                                                       '((e . "f") (g . "h"))))
+              (list '((a . "b") (c . "d"))
+                    '((g . "h") (e . "f"))))
 
 ;; an example:
 
-(define test-success-msg "success-message-htns")
+(define test-success-msg "success message\"\r\n\r\n\r\n  \" htns")
 
 (define sample-args 
   `((smessage . ,test-success-msg)

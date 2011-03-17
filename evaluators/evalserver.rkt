@@ -4,24 +4,9 @@
          web-server/http/request-structs
          web-server/http/response-structs
          (planet dherman/json:3:0)
-         racket/dict
          "java-header-example.rkt"
-         rackunit)
-
-;; these will probably change, as we refine the protocol:
-(define id-name 'id)
-(define text-fields-name 'textfields)
-
-;; create a string indicating failure:
-(define (failure str) (result "failure" str))
-
-;; create a string indicating success:
-(define (success str) (result "success" str))
-
-;; create a string indicating an internal error:
-;;(define (internal-error xexpr) (result "internal-error" (xexpr->string xexpr)))
-;; internal-error not yet supported, falling back to failure:
-(define internal-error failure)
+         rackunit
+         "shared.rkt")
 
 (define (result tag text)
   (response/full
