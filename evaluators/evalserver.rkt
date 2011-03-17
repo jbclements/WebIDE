@@ -11,17 +11,6 @@
          "shared.rkt"
          "transport.rkt")
 
-(define (result tag text)
-  (response/full
-   200
-   #"Okay"
-   (current-seconds)
-   TEXT/HTML-MIME-TYPE ;; should change? maybe not.
-   empty
-   (list
-    (string->bytes/utf-8 
-     (jsexpr->json 
-      (make-immutable-hasheq `((status . ,tag) (message . ,text))))))))
 
 (define (start request)
   (let/ec abort
@@ -59,9 +48,7 @@
                                   path-string))))])
         (check-fields abort uri "args" required-args args-assoc)
         (check-fields abort uri "textfields" required-fields textfields-assoc)
-        (
-         
-         ;;add it here!
+        (result->response
          (evaluator args-assoc textfields-assoc))))))
 
 ;; url-path->path : (listof path/param) -> string
@@ -106,15 +93,15 @@
 ;; log an error, return it to the user
 (define (log-and-return escaper status message)
   (log-error message)
-  (escaper (result status message)))
+  (escaper (make-webide-response status message)))
 
 (define (approx-age-header-checker args textfields)
   (match (dict-map textfields (lambda (k v) v))
     [(list firstline)
      (match (birth-year-example firstline)
-       ['success (result "success" "success")]
-       [(? string? msg) (result "failure" msg)])]
-    [other (result "callerfail" "request must have exactly one text field")]))
+       ['success (success)]
+       [(? string? msg) (failure msg)])]
+    [other (callerfail "request must have exactly one text field")]))
 
 
 (define evaluator-table
@@ -122,35 +109,54 @@
   ;; the list of required text fields, and the function
   ;; that handles the evaluation.
   `(("getApproxAgeHeader" (() () ,approx-age-header-checker))
-    ("alwaysSucceed" (() () ,(lambda (dc1 dc2) (result "success" "success"))))
+    ("alwaysSucceed" (() () ,(lambda (dc1 dc2) (success))))
     ("any-c-int" (() () ,any-c-int))
     ("any-c-addition" (() () ,any-c-addition))
     ("c-parser-match" ((pattern) () ,c-parser-match))))
 
+;; turn an evaluator response into a webide response
+(define (result->response result)
+  (match result
+    [(success) (make-webide-response "success" "success")]
+    [(failure msg) (make-webide-response "failure" msg)]
+    [(serverfail msg) (make-webide-response "serverfail" msg)]
+    [(callerfail msg) (make-webide-response "callerfail" msg)]))
 
-(define (run-tests)
-  (check-equal? (url-path->path
-                 (lambda (x) x)
-                 (list (path/param "foo" '())
-                       (path/param "goo" '())))
-                "foo/goo")
-  (check-equal? (url-path->path
-                 (lambda (x) 'fail)
-                 (list (path/param "foo" '("zipzap"))
-                       (path/param "goo" '())))
-                'fail)
-  (check-equal? (url-path->path
-                 (lambda (x) 'fail)
-                 (list (path/param 'up '())
-                       (path/param "goo" '())))
-                'fail))
+;; format a response
+(define (make-webide-response tag text)
+  (response/full
+   200
+   #"Okay"
+   (current-seconds)
+   TEXT/HTML-MIME-TYPE ;; should change? maybe not.
+   empty
+   (list
+    (string->bytes/utf-8 
+     (jsexpr->json 
+      (make-immutable-hasheq `((status . ,tag) (message . ,text))))))))
 
 
-(run-tests)
+
+(check-equal? (url-path->path
+               (lambda (x) x)
+               (list (path/param "foo" '())
+                     (path/param "goo" '())))
+              "foo/goo")
+(check-equal? (url-path->path
+               (lambda (x) 'fail)
+               (list (path/param "foo" '("zipzap"))
+                     (path/param "goo" '())))
+              'fail)
+(check-equal? (url-path->path
+               (lambda (x) 'fail)
+               (list (path/param 'up '())
+                     (path/param "goo" '())))
+              'fail)
+
 
 (serve/servlet start
                #:port 8025
-               ;; #:listen-ip #f ;; running locally, for now.
+               #:listen-ip #f
                #:launch-browser? #f
                #:servlet-regexp #px""  ;; trivially succeeds
-               #:log-file "/tmp/webide-backend-log")
+               #:log-file "webide-backend-webserver-log")

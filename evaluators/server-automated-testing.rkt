@@ -114,6 +114,14 @@
                                      '() 
                                      '((dc . "224")))
               #s(success))
+(check-equal? (remote-evaluator-call (string-append l-u "any-c-int") 
+                                     '() 
+                                     '((dc . "  224 /* comment */")))
+              #s(success))
+(check-equal? (remote-evaluator-call (string-append l-u "any-c-int") 
+                                     '() 
+                                     '((dc . "  224 123")))
+              #s(failure "\"  224 123\" doesn't parse as an integer"))
 
 
 

@@ -6,4 +6,5 @@
 (struct success () #:prefab)
 (struct failure (msg) #:prefab)
 (struct serverfail (msg) #:prefab)
+(struct callerfail (msg) #:prefab)
 
