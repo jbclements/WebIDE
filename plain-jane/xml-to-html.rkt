@@ -2,13 +2,11 @@
 
 (require (planet clements/sxml2)
          rackunit
-         "apat.rkt"
-         "shared.rkt")
+         "apat.rkt")
 
 (provide port->xml
          xml->steps
-         pcon
-         step->evaluators)
+         pcon)
 
 (define webide-namespace "http://www.web-ide.org/namespaces/labs/1")
 
@@ -94,45 +92,6 @@
                       (loop (drop left width)))])))
 
 
-;; extracting evaluators:
-
-;; sxml -> evaluator
-(define (step->evaluators step)
-  (map parse-evaluator 
-       ((sxpath '(// w1:evaluator)) `(*TOP* ,step))))
-
-(define (parse-evaluator eval)
-  (match eval
-    [`(w1:evaluator (|@| . ,attrs)
-                    (w1:fixedArg (w1:name ,argname) 
-                                 (w1:value ,argvalue))
-                    ...
-                    (w1:userfieldArg (w1:name ,fieldname)
-                                     (w1:value ,fieldvalue))
-                    ...)
-     (evaluator (cadr (assoc 'href attrs))
-                (map cons (map string->symbol argname) argvalue)
-                (map cons (map string->symbol fieldname) fieldvalue))]))
-
-(define (seg-or-arg? elt) (member (car elt) '(w1:segid w1:arg)))
-(define (seg? elt) (equal? (car elt) 'w1:segid))
-
-;; return the string for a well-formed segid
-(define (seg->str elt idx)
-  (match elt
-    ;; this convention is gross, because the evaluator has to know the names of the segments...
-    [`(w1:segid (w1:id ,(? string? segid))) (cons (string->symbol segid) segid)]
-    [other (error 'seg->str "badly formed seg: ~v" elt)]))
-
-;; return a list containing the name and value of an arg
-(define (arg->strs elt)
-  (match elt
-    [`(w1:arg (w1:name ,(? string? name)) (w1:value ,value)) (cons (string->symbol name) value)]
-    [`(w1:arg (w1:name ,(? string? name)) (w1:value)) (cons (string->symbol name) "")]
-    [other (error 'arg->strs "badly formed arg: ~v" elt)]))
-
-
-
 ;; extract an attribute representing a number
 (define (num-attr attrs key)
   (match (assoc key attrs)
@@ -154,18 +113,6 @@
 (check-equal? (num-attr '((a "13") (b "14")) 'a) 13)
 (check-equal? (num-attr '((a "13") (b "14")) 'b) 14)
 
-
-(check-equal? (step->evaluators 
-               `(w1:step "a" (w1:evaluator (@ (href "ghi")))
-                         (p (b (w1:evaluator (@ (href "stu"))
-                                             (w1:fixedArg (w1:name "a1")
-                                                     (w1:value "v1"))
-                                             (w1:userfieldArg
-                                              (w1:name "foo") 
-                                              (w1:value "bar")))))))
-              (list (evaluator "ghi" '() '())
-                    (evaluator "stu" '((a1 . "v1"))
-                               '((foo . "bar")))))
 
 (check-equal? (strip-tag 'w1:br) 'br)
 

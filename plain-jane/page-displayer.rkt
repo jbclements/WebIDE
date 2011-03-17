@@ -8,7 +8,7 @@
          "response-sxml.rkt"
          "xml-to-html.rkt"
          "run-evaluator.rkt"
-         "shared.rkt")
+         "../evaluators/shared.rkt")
 
 (define tiny-lab-path "/Users/clements/trac-webide/labs/JBCJava/tiny-lab.xml")
 (define tiny-with-box-path "/Users/clements/trac-webide/labs/JBCJava/tiny-with-box.xml")
