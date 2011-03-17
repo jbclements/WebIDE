@@ -141,9 +141,6 @@
               (failure "\"098732\" doesn't parse as the sum of two integers"))
 
 
-
-;; test cases :
-
 (check-equal? (parses-as-int? "  34") #t)
 (check-equal? (parses-as-int? "  a") #f)
 (check-equal? (parses-as-int? "  3 // zappa") #t)

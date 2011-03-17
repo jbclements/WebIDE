@@ -4,10 +4,11 @@
          net/url
          net/uri-codec
          rackunit
-         "../evaluators/shared.rkt")
+         "shared.rkt")
 
 (provide remote-evaluator-call
-         post-bytes->args-n-fields)
+         post-bytes->args-n-fields
+         url-alive?)
 
 (define standard-headers '("Content-Type: application/x-www-form-urlencoded"))
 
@@ -27,7 +28,9 @@
   (match (hash-ref jsexpr 'status 'serverfail)
     ["success" (success)]
     ["failure" (failure (hash-ref jsexpr 'message))]
-    ['serverfail (serverfail (format "unexpected result from server: ~s" jsexpr))]))
+    ["serverfail" (serverfail (hash-ref jsexpr 'message))]
+    ["callerfail" (serverfail (hash-ref jsexpr 'message))]
+    [other (serverfail (format "unexpected response: ~s" jsexpr))]))
 
 
 ;; given a name and some args and textfields, generate
@@ -40,10 +43,12 @@
 
 ;; given a jsexpr, extract args and textfields; insist on this structure exactly
 (define (jsexpr->args-n-fields jsexpr)
+  (unless (hash? jsexpr)
+    (error 'jsexpr->args-n-fields "bad request shape (not a hash): ~s" jsexpr))
   (match (hash-map jsexpr cons)
     [(list-no-order `(id . ,dont-care)
-                    `(args . ,args-hash)
-                    `(textfields . ,textfields-hash))
+                    `(args . ,(? hash? args-hash))
+                    `(textfields . ,(? hash? textfields-hash)))
      (list (hash-map args-hash cons)
            (hash-map textfields-hash cons))]
     [other (error 'jsexpr->args-n-fields "bad request shape: ~s" jsexpr)]))
@@ -85,7 +90,7 @@
   (cond [(= reply-code 200)
          (define reply (first (regexp-match #px".*" eval-response-port)))
          (close-input-port eval-response-port)
-         (printf "reply-bytes : ~v\n" reply)
+         (log-debug  (format "reply-bytes : ~v\n" reply))
          (bytes->string/utf-8 reply)]
         [else 
          (error 'remote-evaluator-call/bytes
@@ -121,60 +126,26 @@
 
 ;; this test case shouldn't depend on the ordering of the elements of the list, but 
 ;; it does.
-(check-equal? (jsexpr->args-n-fields (make-eval-jsexpr '((a . "b") (c . "d"))
-                                                       '((e . "f") (g . "h"))))
-              (list '((a . "b") (c . "d"))
-                    '((g . "h") (e . "f"))))
+(check-equal? (match (jsexpr->args-n-fields 
+                      (make-eval-jsexpr '((a . "b") (c . "d"))
+                                        '((e . "f") (g . "h"))))
+                [(list (list-no-order '(a . "b") '(c . "d"))
+                       (list-no-order '(g . "h") '(e . "f")))
+                 #t]
+                [other #f])
+              #t)
 
-;; an example:
-
-(define test-success-msg "success message\"\r\n\r\n\r\n  \" htns")
-
-(define sample-args 
-  `((smessage . ,test-success-msg)
-    (functionCall . "assignGroup(18)")
-    (expectedOutput . "'C'")
-    (function . "public char assignGroup(int age) { char group = 'x'; @groupC return group;} ")))
-
-(define success-response
-  (make-immutable-hasheq `((status . "success") (message . ,test-success-msg))))
-(define (fail-response? r)
-  (equal? (hash-ref r 'status) "failure"))
 
 ;; check that a given URL is alive and responds with a json result to a trivial 
 ;; json input.
 (define (url-alive? url-string)
   (with-handlers ([exn:fail? (lambda (exn) #f)])
-  (remote-evaluator-call/jsexpr url-string 1234)))
+    (remote-evaluator-call/jsexpr url-string 1234)
+    #t))
 
-;; TESTING:
 
-(define amazon-evaluator
-    "http://184.73.238.21/webide/evaluators/JavaEvaluator/JavaEvaluator.php")
 
-(define (run-tests)
-  
-  
-  (define (amazon-success-equal? args textfields)
-    (check-equal? (remote-evaluator-call amazon-evaluator args textfields)
-                  (success)))
-  
-  (define (check-amazon-fail? args textfields)
-    (check-equal? (failure? (remote-evaluator-call amazon-evaluator args textfields))
-                  #true))
-  
-  (amazon-success-equal? sample-args '((groupC . "group = 'C';")))
-  (check-amazon-fail? sample-args '((groupC . "234;")))
-  
-  
 
-  (check-equal? (url-alive? "http://www.berkeley.edu/ohhoeuntesuth") #f)
-  
-  (check-equal? (not (not (url-alive? amazon-evaluator))) #t)
-  
-  (check-equal? (url-alive? "http://bogo-host-that-doesnt-exist.com/") #f))
-
-(run-tests)
 
 
 

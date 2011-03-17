@@ -1,1 +1,22 @@
-This repository stores my pieces of the WebIDE project. Initially, I'm adding Bill Hess' stuff.
+This repository contains code related to Web-IDE, or at least my parts of it.
+
+Recent activity focuses on the back-end evaluators, and lives in the 'evaluators'
+subdirectory.  
+
+There's also a simple web-ide server, that lives in 'plain-jane'.
+
+TO TRY RUNNING IT:
+
+In DrRacket, run "plain-jane/experimenting.rkt". It'll probably make your life easier
+if you pre-install the sxml2 package by running
+
+raco planet install clements sxml2.plt 1 0
+
+oops I mean
+
+racket -W info -e '(require (planet clements/sxml2))'
+
+oh dear I should open this in an editor, rather than just using 'cat'.
+
+Also, startup will be faster if you already have a browser open before running
+'experimental.rkt'.

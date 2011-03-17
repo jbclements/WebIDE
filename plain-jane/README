@@ -1,1 +1,4 @@
-Okay, I admit it. I got frustrated, so I wrote my own lab viewer.
+This directory contains a re-implementation of the web-ide server. It converts lab xml
+to the corresponding html elements using the simplest possible scheme; in particular, it 
+just assumes the existence of any tags it doesn't explicitly know about. 
+

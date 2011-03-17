@@ -6,7 +6,7 @@
 (require web-server/http/request-structs
          (planet clements/sxml2)
          rackunit
-         "remote-evaluator-call.rkt"
+         "../evaluators/transport.rkt"
          "../evaluators/c-evaluator-call.rkt"
          "../evaluators/shared.rkt")
 
