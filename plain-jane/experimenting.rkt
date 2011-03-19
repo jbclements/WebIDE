@@ -7,7 +7,8 @@
          "evaluator-collector.rkt"
          #;(file "/Users/clements/trac-webide/labs/validate-lib.rkt"))
 
-
+(define eval-server-url-prefix "http://brinckerhoff.org:8025/")
+(define (url x) (string-append eval-server-url-prefix x))
 
 ;; FIXME: 
 ;; - paragraph wrapping
@@ -31,7 +32,7 @@
  13 is an integer, and so is 0, and so is -146.
  
  Try entering an integer in this box:
- @buttonregion[(box "evaluator://any-c-int" '())]
+ @buttonregion[(box (url "any-c-int") '())]
  
     If you like, you can try a bunch of different integers. Are there
  things that you expect to be integers that aren't? If you're unsure
@@ -49,7 +50,7 @@
  To add @code{3} and @code{4} together, for instance, you can write @code{3 + 4} .
  
  Write an arithmetic expression that uses addition to add two numbers:
- @buttonregion[(box "evaluator://any-c-addition" '())]
+ @buttonregion[(box (url "any-c-addition") '())]
  
  So, what are the gotchas? The biggest one has to do with integer division.
  In C, dividing an integer by an integer produces another integer.  This works
@@ -189,7 +190,7 @@
 
 ;; a box that should match a c-parsed representation
 (define (c-parser-box expected)
-  (box "evaluator://c-parser-match"
+  (box (url "c-parser-match")
        `((pattern ,expected))))
 
 (define bogusbox 
