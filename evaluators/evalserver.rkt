@@ -6,7 +6,7 @@
          net/url
          (planet dherman/json:3:0)
          "java-header-example.rkt"
-         "c-evaluator-call.rkt"
+         "c-evaluators.rkt"
          rackunit
          "shared.rkt"
          "transport.rkt")

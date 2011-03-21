@@ -4,6 +4,9 @@
          (planet dherman/c:3:2)
          rackunit)
 
+;; this file contains the definitions of the evaluators for C, most notably
+;; the "c-parser-match" evaluator, that tries to guide the student toward 
+;; producing code that parses to the same result as the instructor's code.
 
 (provide any-c-int
          any-c-addition
