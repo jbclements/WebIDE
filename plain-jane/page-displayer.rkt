@@ -5,10 +5,15 @@
          web-server/http/xexpr
          web-server/formlets         
          net/url
+         xml
          "response-sxml.rkt"
          "xml-to-html.rkt"
          "run-evaluator.rkt"
-         "../evaluators/shared.rkt")
+         "../evaluators/shared.rkt"
+         rackunit)
+
+(define innocuous-tags
+  '(div h1 h2 h3 h4 p i))
 
 (define tiny-lab-path "/Users/clements/trac-webide/labs/JBCJava/tiny-lab.xml")
 (define tiny-with-box-path "/Users/clements/trac-webide/labs/JBCJava/tiny-with-box.xml")
@@ -58,6 +63,7 @@
     (cond [(empty? evaluators) (show-steps steps)]
           [else 
            (match (let ([ans (ev (first evaluators))])
+                    ;; local printf debugging...
                     (printf "result of evaluator: ~s\n" ans)
                     ans)
              [(struct success ()) (loop (rest evaluators))]
@@ -89,11 +95,55 @@
           (body ,sxml))))
 
 ;; show a page with a fail message on it.
+;; xml-element -> 
 (define (fail-page msg)
+  (define result-xml-elements (parse-response-msg msg))
   (response/sxml
    (top-wrap `(div (h1 "Evaluator Failed")
-                   (p "failure message : " ,msg)))))
+                   (p "failure message : ")
+                   ,@result-xml-elements))))
 
+;; turn the response message into displayable xexprs:
+(define (parse-response-msg msg)
+  ;; on illegal xml, just return the string:
+  (with-handlers ([exn:fail? (lambda (exn) msg)])
+    (let ([element
+           (xml->xexpr
+            (call-with-input-string 
+             msg
+             read-xml/element))])
+      (check-for-illegal-elements element)
+      element)))
+
+;; make sure that only the tags in the legal list occur. 
+;; this probably isn't good enough...
+(define (check-for-illegal-elements elt)
+  (match elt 
+    [`(,tag ((,attr ,val) ...) . ,content)
+     (and (okay-tag? tag)
+          ;; check attrs...?
+          (andmap check-for-illegal-elements content))]
+    [`(,tag . ,content)
+     (and (okay-tag? tag)
+          ;; check attrs...?
+          (andmap check-for-illegal-elements content))]
+    [other ;; should all be okay?
+     #t]))
+
+(define (okay-tag? t)
+  (or 
+   (memq t innocuous-tags)
+   (error 'okay-tag? "illegal tag in response: ~a. Malicious evaluator?" t)))
+
+(check-exn exn:fail?
+           (lambda ()
+             (check-for-illegal-elements `(div (p () (illegal!))))))
+(check-equal? (check-for-illegal-elements `(div (p ((bronski "foobar")) (p "oech"))))
+              #t)
+(check-equal? (parse-response-msg "<div>I <i>really</i> like your code!</div>")
+              `(div () "I "(i () "really")" like your code!"))
+(check-equal? (parse-response-msg "<div>oh dear <i>unbalanced tag</div>")
+              "<div>oh dear <i>unbalanced tag</div>")
 
 ;; read the lab xml from a path
 (define (path->xml path)
