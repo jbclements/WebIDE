@@ -7,7 +7,12 @@
          "evaluator-collector.rkt"
          #;(file "/Users/clements/trac-webide/labs/validate-lib.rkt"))
 
-(define eval-server-url-prefix "http://brinckerhoff.org:8025/")
+(define eval-server-url-prefix 
+  ;; remote host:
+  #;"http://brinckerhoff.org:8025/"
+  ;; intra-process
+  "evaluator://"
+  )
 (define (url x) (string-append eval-server-url-prefix x))
 
 ;; FIXME: 
@@ -17,10 +22,9 @@
 ;; - better 'code' tag for inline code
 
 (define (the-lab) 
-  (list '*TOP* 
-    '(|@| (*NAMESPACES* (w1 "http://www.web-ide.org/namespaces/labs/2")))
-     @lab["First C Lab"]{
-     @step["Integers" #:dependencies `()]{ 
+  (lab 
+   "First C Lab"
+   @step["Integers" #:dependencies `()]{ 
  
  The first step in any programming task is to think about the kinds of 
  data that you need, and the first step in learning a new programming 
@@ -107,7 +111,7 @@
        (c-parser-box "3"))
  (list "four times the result of five minus two, divided by six"
        (c-parser-box "(4*(5-2))/6")
-       (c-parser-box "2"))]]}}))
+       (c-parser-box "2"))]]}))
 
 (define (intbox str)
   (only-regexp "[+-]?[0-9]+"))
@@ -130,12 +134,15 @@
   (lambda (str)
     (regexp-match (pregexp (string-append "^\\s*" pxstr "\\s*$")) str)))
 
+;; string content ... -> sxml-document
 (define (lab name . content) 
-  `(w1:lab (|@| (name ,name))
-           ,@content))
+  `(*TOP*
+    (|@| (*NAMESPACES* (w1 "http://www.web-ide.org/namespaces/labs/2")))
+    (w1:lab (|@| (name ,name))
+           ,@content)))
+
 (define (step name 
-             #:dependencies [dependencies `()] 
-             #:evaluators [evaluators `()]
+             #:dependencies [dependencies `()]
              . content)
   `(pre-step (|@| (name ,name)) ,@content))
 (define (h3 . content) (cons 'w1:h3 content))
@@ -202,19 +209,24 @@
 
 
 
+;; try-one-evaluator : evaluator -> 
+(define (try-one-evaluator eval)
+  (lab 
+   "testing a single evaluator lab"
+   @step["testing a single evaluator step"]{
+                                            Here's the evaluator you wanted to test:
+                                            @buttonregion[eval]}))
 
-;; POST-PASS TO COLLECT EVALUATORS
-(define collected 
-  (collect-evaluators (the-lab)))
 
 
+#;(require (file "/Users/clements/trac-webide/labs/validate-lib.rkt"))
+#;(validate-sxml (collect-evaluators (the-lab)))
 
-
-(require (file "/Users/clements/trac-webide/labs/validate-lib.rkt"))
-
-(validate-sxml collected)
 
 (define (start request)
-  (run-lab collected))
+  (run-lab 
+   (collect-evaluators
+    (try-one-evaluator (c-parser-box "3 + 4"))
+    #;(the-lab))))
 
 (serve/servlet start)
