@@ -226,7 +226,7 @@
 (define (start request)
   (run-lab 
    (collect-evaluators
-    (try-one-evaluator (c-parser-box "3 + 4"))
+    (try-one-evaluator (c-parser-box "(3+4)/7"))
     #;(the-lab))))
 
 (serve/servlet start)

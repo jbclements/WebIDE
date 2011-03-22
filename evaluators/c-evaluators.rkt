@@ -67,7 +67,7 @@
     (lambda (usertext)
       (catch-reader-parser-errors
        (lambda ()
-         (compare-parsed parsed-pattern (parse-expression usertext)))))))
+         (compare-parsed parsed-pattern usertext))))))
 
 
 ;; catch exn:fail:read and exn:fail:syntax, turn them into failures
@@ -90,11 +90,13 @@
                   "lab spec provided wrong number of user fields in ~v" texts)]))
 
 ;; compare-parsed : correct-parsed user-parsed -> (or/c success? failure?)
-(define (compare-parsed correct-parsed user-parsed)
+(define (compare-parsed correct-parsed usertext)
+  (define user-parsed (parse-expression usertext))
   (with-handlers ([src? 
                    (lambda (src)
-                     (fail-msg (src-start-offset src)
-                               (src-end-offset src)))])
+                     (fail-msg (src-start-offset src) 
+                               (src-end-offset src)
+                               usertext))])
     (begin (unless (struct? user-parsed)
              (error 'compare-parsed "internal error 20110321-19:44, expected user parsed to be a struct"))
            (parsed-exp-equal? correct-parsed user-parsed #f)
@@ -103,9 +105,10 @@
 ;; parsed-exp-equal? : parsed parsed src-offset src-offset -> boolean
 ;; determine whether two parsed structures are the same up to source positions
 ;; NB: uses a coarse def'n of parseds as either
-;; structs whose first element is a source position and whose remaining positions
-;;   are parseds, or
-;; values comparable with equal?
+;; structs whose first element is a source position and whose remaining positions are
+;; - parseds, or
+;; - lists of parseds, or
+;; - values comparable with equal?
 ;; the parent-src is used to report error positions for source terms that are not 
 ;; structs. Because of the data definition we're using, this must be the immediate
 ;; parent node.
@@ -121,6 +124,11 @@
               (fail-wrap (= (vector-length user-vec) (vector-length correct-vec)) user-src)
               (for/and ([i (in-range 2 (vector-length user-vec))])
                 (parsed-exp-equal? (vector-ref correct-vec i) (vector-ref user-vec i) user-src)))]
+        #;[(pair? user-parsed)
+         (cond [(pair? correct-parsed)
+                (and )])]
+        #;[(and )]
+        #;[]
         [else (fail-wrap (equal? user-parsed correct-parsed) parent-src)]))
 
 
@@ -129,10 +137,20 @@
 (define (fail-wrap b src)
   (or b (raise src)))
 
+
 ;; fail-msg : integer integer -> failure
-(define (fail-msg start end)
-  (failure (format
-            "part of it looks good, but you need to fix characters ~s-~s"
+(define (fail-msg start end usertxt)
+  (define pre (substring usertxt 0 (- start 1)))
+  (define middle (substring usertxt (- start 1) (- end 1)))
+  (define post (substring usertxt (- end 1) (string-length usertxt)))
+  (failure `(div (p "it looks like you need to fix the boxed part:") 
+                 (p (span
+                     (|@| (style "font-family: monospace;"))
+                     ,pre 
+                     (span (|@| (style "border: 1px solid rgb(50, 50, 50); background-color : rgb(250,200,200);")) ,middle)
+                     ,post)))
+           #;(format
+            "part of it looks good, but you need to fix part of it:\n"
             start end)))
 
 (check-equal? (fail-wrap #true (src 1 2 3 4 5 6 7)) #t)
@@ -143,18 +161,18 @@
 ;; TESTING
 
 (define (pee-test str-a str-b)
-  (compare-parsed (parse-expression str-a) (parse-expression str-b)))
+  (compare-parsed (parse-expression str-a) str-b))
 
 (check-equal? (pee-test "234" "  234 /*oth*/") (success))
-(check-equal? (pee-test "234" "  235 /*oth*/") (fail-msg 3 6))
+(check-equal? (pee-test "234" "  235 /*oth*/") (fail-msg 3 6 "  235 /*oth*/"))
 (check-equal? (pee-test "(2342 + 22)" "2342 + 22") (success))
-(check-equal? (pee-test "(2342 + 22)" "2343 + 22") (fail-msg 1 5))
+(check-equal? (pee-test "(2342 + 22)" "2343 + 22") (fail-msg 1 5 "2343 + 22"))
 (check-equal? (pee-test "((x + 34) + 22)" "x+34+22") (success))
-(check-equal? (pee-test "((x + 34) + 22)" "x+(34+22)") (fail-msg 1 2))
-(check-equal? (pee-test "((x + 34) + 22)" "y+34+22") (fail-msg 1 2))
+(check-equal? (pee-test "((x + 34) + 22)" "x+(34+22)") (fail-msg 1 2 "x+(34+22)"))
+(check-equal? (pee-test "((x + 34) + 22)" "y+34+22") (fail-msg 1 2 "y+34+22"))
 
 (check-equal? ((pattern->matcher "((x + 34) + 22)") "x+34+22") (success))
-(check-equal? ((pattern->matcher "((x + 34) + 22)") "x+35+22") (fail-msg 3 5))
+(check-equal? ((pattern->matcher "((x + 34) + 22)") "x+35+22") (fail-msg 3 5 "x+35+22"))
 
 (check-equal? (c-parser-match '((pattern . "((x + 34) + 22)"))
                               '((frog . "x+34+22")))
@@ -162,6 +180,10 @@
 (check-equal? (failure? (c-parser-match '((pattern . "((x + 34) + 22)"))
                                         '((frog . "x+34+029"))))
               #t)
+
+(check-equal? (c-parser-match '((pattern . "f(3,4,6)"))
+                              '((frog . "f(x)")))
+              (fail-msg 4 4 "f(x)"))
 
 
 (check-equal? (extract-1-user-string '((foo . "bar"))) "bar")

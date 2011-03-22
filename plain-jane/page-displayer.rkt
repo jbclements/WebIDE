@@ -67,7 +67,7 @@
                     (printf "result of evaluator: ~s\n" ans)
                     ans)
              [(struct success ()) (loop (rest evaluators))]
-             [(struct failure (msg)) (fail-page msg)])])))
+             [(struct failure (xexpr)) (fail-page xexpr)])])))
 
 
 ;; ask the user to enter a URL
@@ -96,12 +96,12 @@
 
 ;; show a page with a fail message on it.
 ;; xml-element -> 
-(define (fail-page msg)
-  (define result-xml-elements (parse-response-msg msg))
+(define (fail-page result-xml-element)
+  #;(define result-xml-element (parse-response-msg msg))
   (response/sxml
    (top-wrap `(div (h1 "Evaluator Failed")
                    (p "failure message : ")
-                   ,@result-xml-elements))))
+                   ,result-xml-element))))
 
 ;; turn the response message into displayable xexprs:
 (define (parse-response-msg msg)
