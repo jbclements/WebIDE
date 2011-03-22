@@ -1,10 +1,8 @@
 #lang at-exp racket
 
 (require web-server/servlet-env
-         rackunit)
-
-(require "page-displayer.rkt"
-         "evaluator-collector.rkt"
+         "page-displayer.rkt"
+         "lab-definition-utils.rkt"
          #;(file "/Users/clements/trac-webide/labs/validate-lib.rkt"))
 
 (define eval-server-url-prefix 
@@ -13,13 +11,10 @@
   ;; intra-process
   "evaluator://"
   )
-(define (url x) (string-append eval-server-url-prefix x))
+
 
 ;; FIXME: 
 ;; - paragraph wrapping
-;; - actual evaluators :)
-;; - add tags to rnc
-;; - better 'code' tag for inline code
 
 (define (the-lab) 
   (lab 
@@ -113,86 +108,11 @@
        (c-parser-box "(4*(5-2))/6")
        (c-parser-box "2"))]]}))
 
-(define (intbox str)
-  (only-regexp "[+-]?[0-9]+"))
 
 
-;; given a list of lists of cell contents, produce a table:
-(define (table . rows)
-  (cons 'w1:table
-        (for/list ([r (in-list rows)])
-          `(w1:tr ,@(for/list ([c (in-list r)])
-                      `(w1:td ,c))))))
+#;(require (file "/Users/clements/trac-webide/labs/validate-lib.rkt"))
+#;(validate-sxml (the-lab))
 
-(check-equal? (table (list 3 4) (list 5 6))
-              `(w1:table (w1:tr (w1:td 3) (w1:td 4))
-                         (w1:tr (w1:td 5) (w1:td 6))))
-
-
-;; wrap a string with whitespace padding to make a whole-line matcher
-(define (only-regexp pxstr)
-  (lambda (str)
-    (regexp-match (pregexp (string-append "^\\s*" pxstr "\\s*$")) str)))
-
-;; string content ... -> sxml-document
-(define (lab name . content) 
-  `(*TOP*
-    (|@| (*NAMESPACES* (w1 "http://www.web-ide.org/namespaces/labs/2")))
-    (w1:lab (|@| (name ,name))
-           ,@content)))
-
-(define (step name 
-             #:dependencies [dependencies `()]
-             . content)
-  `(pre-step (|@| (name ,name)) ,@content))
-(define (h3 . content) (cons 'w1:h3 content))
-
-;; a short-cut for defining tag-like functions:
-(define-syntax (define-tag-helper stx)
-  (syntax-case stx ()
-    [(_ id)
-     #`(define (id . content)
-         `(#,(string->symbol
-              (string-append "w1:" (symbol->string (syntax->datum #'id))))
-           ,@content))]))
-
-(define-tag-helper p)
-(define-tag-helper code)
-
-;; We'll clean these up in a pass over the whole body
-(define (buttonregion #:label [label "go"] . elts) 
-  `(buttonregion (|@| (label ,label)) ,@elts))
-
-;; in that case, "box" should just emit an evaluator element to the collector, and
-;; spit out a fresh textfield. This only works for single-box evaluators.
-(define (box url args)
-  (let ([new-textfield-id (next-textfield-id)]
-        [new-evaluator-id (next-evaluator-id)])
-    `(w1:div
-      (pre-evaluator 
-       (|@| (href ,url)
-            (name ,new-evaluator-id))
-       ,@(map arg->eval-arg args)
-       (w1:userfieldArg (w1:name "userText") 
-                        (w1:value ,new-textfield-id)))
-      (w1:userfield (|@| (id ,new-textfield-id))))))
-
-(define (arg->eval-arg pr)
-  (match pr
-    [(list a b)
-     `(w1:fixedArg (w1:name ,(symbol->string a)) (w1:value ,b))]))
-
-;; GENERATE FRESH TEXTFIELD-IDs and EVALUATOR-IDs
-
-(define textfield-ctr 0)
-(define (next-textfield-id)
-  (set! textfield-ctr (+ textfield-ctr 1))
-  (format "text-field-~v" textfield-ctr))
-
-(define evaluator-ctr 0)
-(define (next-evaluator-id)
-  (set! evaluator-ctr (+ evaluator-ctr 1))
-  (format "evaluator-~v" evaluator-ctr))
 
 
 ;; a box that should match a c-parsed representation
@@ -200,12 +120,8 @@
   (box (url "c-parser-match")
        `((pattern ,expected))))
 
-(define bogusbox 
-  (box "this is not a url" '()))
+(define (url x) (string-append eval-server-url-prefix x))
 
-;; a box with a button right next to it:
-(define (box&button url args)
-  (buttonregion (box url args)))
 
 
 
@@ -213,20 +129,26 @@
 (define (try-one-evaluator eval)
   (lab 
    "testing a single evaluator lab"
-   @step["testing a single evaluator step"]{
-                                            Here's the evaluator you wanted to test:
-                                            @buttonregion[eval]}))
+   (step "testing a single evaluator step"
+         ""
+         "Here's the evaluator you wanted to test:"
+         (buttonregion eval))))
+
+;; run the lab, using the plain-jane WebIDE agent:
+(define (go lab)
+  (serve/servlet 
+   (lambda (request)
+     (run-lab lab))))
 
 
 
-#;(require (file "/Users/clements/trac-webide/labs/validate-lib.rkt"))
-#;(validate-sxml (collect-evaluators (the-lab)))
 
 
-(define (start request)
-  (run-lab 
-   (collect-evaluators
-    (try-one-evaluator (c-parser-box "(3+4)/7"))
-    #;(the-lab))))
+;; WHAT SHOULD WE ACTUALLY RUN?
+(go
+ (try-one-evaluator (c-parser-box "(3+4)/7"))
+ #;(the-lab))
 
-(serve/servlet start)
+
+
+

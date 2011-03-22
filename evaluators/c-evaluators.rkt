@@ -8,6 +8,11 @@
 ;; the "c-parser-match" evaluator, that tries to guide the student toward 
 ;; producing code that parses to the same result as the instructor's code.
 
+;; FIXME:
+;; - line breaks in user code
+;; - extend to handle stmts too
+
+
 (provide any-c-int
          any-c-addition
          c-parser-match)
@@ -92,11 +97,8 @@
 ;; compare-parsed : correct-parsed user-parsed -> (or/c success? failure?)
 (define (compare-parsed correct-parsed usertext)
   (define user-parsed (parse-expression usertext))
-  (with-handlers ([src? 
-                   (lambda (src)
-                     (fail-msg (src-start-offset src) 
-                               (src-end-offset src)
-                               usertext))])
+  (with-handlers ([procedure? (lambda (fail-maker) 
+                                (fail-maker usertext))])
     (begin (unless (struct? user-parsed)
              (error 'compare-parsed "internal error 20110321-19:44, expected user parsed to be a struct"))
            (parsed-exp-equal? correct-parsed user-parsed #f)
@@ -109,6 +111,10 @@
 ;; - parseds, or
 ;; - lists of parseds, or
 ;; - values comparable with equal?
+
+;; ** okay,right now I'm going off the deep end and special-casing things as they come
+;;    up, to give better error messages . We'll see where this ends....
+
 ;; the parent-src is used to report error positions for source terms that are not 
 ;; structs. Because of the data definition we're using, this must be the immediate
 ;; parent node.
@@ -120,10 +126,28 @@
          (define user-vec (struct->vector user-parsed))
          (define correct-vec (struct->vector correct-parsed))
          (define user-src (vector-ref user-vec 1))
-         (and (fail-wrap (equal? (vector-ref user-vec 0) (vector-ref correct-vec 0)) user-src)
-              (fail-wrap (= (vector-length user-vec) (vector-length correct-vec)) user-src)
-              (for/and ([i (in-range 2 (vector-length user-vec))])
-                (parsed-exp-equal? (vector-ref correct-vec i) (vector-ref user-vec i) user-src)))]
+         (unless (equal? (vector-ref user-vec 0) (vector-ref correct-vec 0))
+           (fail-jump user-src #:msg wrong-expr-kind-msg))
+         (define (check-subfields)
+           (unless (= (vector-length user-vec) (vector-length correct-vec))
+             (error 'parsed-exp-equal?
+                    "internal error 20110322: two expressions with struct type ~a have different numbers of fields (~a and ~a)"
+                    (vector-ref correct-vec 0)
+                    (vector-length correct-vec)
+                    (vector-length user-vec)))
+           ;; ignore the struct type & source posn, recur on the rest:
+           (for/and ([i (in-range 2 (vector-length user-vec))])
+             (parsed-exp-equal? (vector-ref correct-vec i)
+                                (vector-ref user-vec i) user-src)))
+         (match (vector-ref correct-vec 0)
+           ['struct:expr:binop
+            (unless (eq? (id:op-name (expr:binop-op user-parsed))
+                         (id:op-name (expr:binop-op correct-parsed)))
+              (fail-jump (id-src (expr:binop-op user-parsed))
+                         #:msg wrong-operator-msg))
+            (check-subfields)]
+           [other (check-subfields)])]
+        
         #;[(pair? user-parsed)
          (cond [(pair? correct-parsed)
                 (and )])]
@@ -135,61 +159,41 @@
 ;; fail-wrap : bool src-posn -> #t
 ;; EFFECT: uses "raise" to exit if the bool is #f
 (define (fail-wrap b src)
-  (or b (raise src)))
+  (or b (fail-jump src)))
 
+;; raise a procedure which will take the user text and return a failure
+(define (fail-jump src #:msg [fail-message default-error-msg])
+  (raise (lambda (usertext)
+           (fail-msg (src-start-offset src)
+                   (src-end-offset src)
+                   usertext
+                   #:msg fail-message))))
 
-;; fail-msg : integer integer -> failure
-(define (fail-msg start end usertxt)
+;; fail-msg : integer integer optional-message -> string - > failure
+(define (fail-msg start end usertxt #:msg [message-text default-error-msg])
   (define pre (substring usertxt 0 (- start 1)))
   (define middle (substring usertxt (- start 1) (- end 1)))
   (define post (substring usertxt (- end 1) (string-length usertxt)))
-  (failure `(div (p "it looks like you need to fix the boxed part:") 
+  (failure `(div (p ,message-text) 
                  (p (span
                      (|@| (style "font-family: monospace;"))
                      ,pre 
                      (span (|@| (style "border: 1px solid rgb(50, 50, 50); background-color : rgb(250,200,200);")) ,middle)
-                     ,post)))
-           #;(format
-            "part of it looks good, but you need to fix part of it:\n"
-            start end)))
+                     ,post)))))
 
-(check-equal? (fail-wrap #true (src 1 2 3 4 5 6 7)) #t)
-(check-exn (lambda (raised) (equal? raised (src 1 2 3 4 5 6 7)))
-           (lambda () (fail-wrap #false (src 1 2 3 4 5 6 7))))
+(define wrong-expr-kind-msg
+  "I wasn't expecting this kind of expression here:")
+(define default-error-msg
+  "It looks like you need to fix the boxed part:")
+(define wrong-operator-msg
+  "I expected a different operator here:")
 
 
 ;; TESTING
 
-(define (pee-test str-a str-b)
-  (compare-parsed (parse-expression str-a) str-b))
-
-(check-equal? (pee-test "234" "  234 /*oth*/") (success))
-(check-equal? (pee-test "234" "  235 /*oth*/") (fail-msg 3 6 "  235 /*oth*/"))
-(check-equal? (pee-test "(2342 + 22)" "2342 + 22") (success))
-(check-equal? (pee-test "(2342 + 22)" "2343 + 22") (fail-msg 1 5 "2343 + 22"))
-(check-equal? (pee-test "((x + 34) + 22)" "x+34+22") (success))
-(check-equal? (pee-test "((x + 34) + 22)" "x+(34+22)") (fail-msg 1 2 "x+(34+22)"))
-(check-equal? (pee-test "((x + 34) + 22)" "y+34+22") (fail-msg 1 2 "y+34+22"))
-
-(check-equal? ((pattern->matcher "((x + 34) + 22)") "x+34+22") (success))
-(check-equal? ((pattern->matcher "((x + 34) + 22)") "x+35+22") (fail-msg 3 5 "x+35+22"))
-
-(check-equal? (c-parser-match '((pattern . "((x + 34) + 22)"))
-                              '((frog . "x+34+22")))
-              (success))
-(check-equal? (failure? (c-parser-match '((pattern . "((x + 34) + 22)"))
-                                        '((frog . "x+34+029"))))
-              #t)
-
-(check-equal? (c-parser-match '((pattern . "f(3,4,6)"))
-                              '((frog . "f(x)")))
-              (fail-msg 4 4 "f(x)"))
-
-
-(check-equal? (extract-1-user-string '((foo . "bar"))) "bar")
-(check-exn exn:fail? (lambda ()
-                        (extract-1-user-string '((foo . "bar")
-                                                 (baz . "quux")))))
+(check-equal? (fail-wrap #true (src 1 2 3 4 5 6 7)) #t)
+(check-exn procedure? 
+           (lambda () (fail-wrap #false (src 1 2 3 4 5 6 7))))
 
 (check-equal? (parses-as-addition? "  /* abc */ 3 + // \n 4") #t)
 (check-equal? (parses-as-addition? "4 - 6") #f)
@@ -209,6 +213,52 @@
               (failure "couldn't break input into tokens"))
 
 
+;; GENERAL PARSER MATCH TESTS
+
+(define (p-test str-a str-b)
+  (compare-parsed (parse-expression str-a) str-b))
+
+(check-equal? (p-test "234" "  234 /*oth*/") (success))
+(check-equal? (p-test "234" "  235 /*oth*/") (fail-msg 3 6 "  235 /*oth*/"))
+(check-equal? (p-test "(2342 + 22)" "2342 + 22") (success))
+(check-equal? (p-test "(2342 + 22)" "2343 + 22") (fail-msg 1 5 "2343 + 22"))
+(check-equal? (p-test "((x + 34) + 22)" "x+34+22") (success))
+(check-equal? (p-test "((x + 34) + 22)" "x+(34+22)")
+              (fail-msg 1 2 "x+(34+22)" #:msg wrong-expr-kind-msg))
+(check-equal? (p-test "((x + 34) + 22)" "y+34+22") (fail-msg 1 2 "y+34+22"))
+;; wrong type of expression:
+(check-equal? (p-test "3 + 4" "f(x)")
+              (fail-msg 1 5 "f(x)" #:msg wrong-expr-kind-msg))
+;; check operators first:
+(check-equal? (p-test "3 + 4" "5 * 7")
+              (fail-msg 3 4 "5 * 7" #:msg wrong-operator-msg))
+;; missing elements in functions:
+(check-equal? (p-test "f(3,4,6)" "f(x)")
+              (fail-msg 4 4 "f(x)"))
+
+;; this level can catch syntactic errors:
+
+(check-equal? ((pattern->matcher "((x + 34) + 22)") "x+34+22") (success))
+(check-equal? ((pattern->matcher "((x + 34) + 22)") "x+35+22") 
+              (fail-msg 3 5 "x+35+22"))
+(check-equal? ((pattern->matcher "((x + 34) + 22)") "x+35+ +22;") 
+              (failure "couldn't parse input"))
+
+
+;; test the wrapper function:
+(check-equal? (c-parser-match '((pattern . "((x + 34) + 22)"))
+                              '((frog . "x+34+22")))
+              (success))
+(check-equal? (failure? (c-parser-match '((pattern . "((x + 34) + 22)"))
+                                        '((frog . "x+34+029"))))
+              #t)
+
+
+
+(check-equal? (extract-1-user-string '((foo . "bar"))) "bar")
+(check-exn exn:fail? (lambda ()
+                        (extract-1-user-string '((foo . "bar")
+                                                 (baz . "quux")))))
 
 (check-equal? 
  (c-parser-match '((pattern . "foo"))
@@ -218,4 +268,6 @@
 (check-equal? 
  (c-parser-match '((pattern . "3 + 4"))
                  '((blah . "6 + 4")))
- (failure "part of it looks good, but you need to fix characters 1-2"))
+ (fail-msg 1 2 "6 + 4"))
+
+;; need test cases for fail-msg, but it's evolving too fast...
