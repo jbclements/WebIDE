@@ -1,0 +1,5 @@
+This directory contains files related to the back-end Racket evaluators for
+WebIDE.  The main file is "evalserver.rkt".  You can start the server by running
+
+racket -W info ./evalserver.rkt
+
