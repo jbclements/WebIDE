@@ -6,13 +6,21 @@
          rackunit
          "shared.rkt")
 
-(provide remote-evaluator-call
-         post-bytes->args-n-fields
-         url-alive?)
+(provide
+ ;; for the client:
+ remote-evaluator-call
+ ;; for the server:
+ post-bytes->args-n-fields
+ jsexpr->response-bytes
+ encode-html-for-transport
+ ;; for testing:
+ url-alive?)
 
 (define standard-headers '("Content-Type: application/x-www-form-urlencoded"))
 
 ;; OUTER LAYER: DEALS WITH JSEXPRS
+
+;; C->s
 
 ;; given a url and a string and an assoc-list of args and an assoc-list
 ;; of textfields, return the response of the evaluator as a jsexpr
@@ -23,15 +31,19 @@
                                  (make-eval-jsexpr args textfields))))
 
 
+;; s->C
+
 ;; turn the jsexpr returned by the server into one of our structures
 (define (jsexpr->result jsexpr)
   (match (hash-ref jsexpr 'status 'serverfail)
     ["success" (success)]
-    ["failure" (failure (hash-ref jsexpr 'message))]
+    ["failure" (failure (decode-html-from-transport (hash-ref jsexpr 'message)))]
     ["serverfail" (serverfail (hash-ref jsexpr 'message))]
     ["callerfail" (serverfail (hash-ref jsexpr 'message))]
     [other (serverfail (format "unexpected response: ~s" jsexpr))]))
 
+
+;; C->s
 
 ;; given a name and some args and textfields, generate
 ;; the jsexpr to be delivered to the evaluator
@@ -40,6 +52,8 @@
   (make-hasheq `((id . "BogusID")
                  (args . ,(make-hasheq args))
                  (textfields . ,(make-hasheq textfields)))))
+
+;; c->S
 
 ;; given a jsexpr, extract args and textfields; insist on this structure exactly
 (define (jsexpr->args-n-fields jsexpr)
@@ -53,6 +67,16 @@
            (hash-map textfields-hash cons))]
     [other (error 'jsexpr->args-n-fields "bad request shape: ~s" jsexpr)]))
 
+;; encode-html-for-transport : map sxml to representation that everyone likes
+(define (encode-html-for-transport sxml)
+  ;; until I find out what WebIDE likes, I'm just using "write":
+  (format "~s" sxml))
+
+;; decode-html-from-transport : map representation that everyone likes to sxml
+;; NB: the simple "write" representation doesn't work for sometimes-sxml-sometimes-not.
+(define (decode-html-from-transport str)
+  (call-with-input-string str read))
+
 
 ;; composing these two yields the identity, for assoc lists mapping symbols to
 ;; strings.
@@ -60,6 +84,9 @@
 
 
 ;; THIS LAYER MAPS JSEXPRS TO JSON-STRINGS
+
+
+;; C->s
 
 ;; given a url-string and a jsexpr, send it to the URL and wait for a 
 ;; response
@@ -71,7 +98,15 @@
      (jsexpr->json jsexpr)))
   (json->jsexpr response-str))
 
+;; S->c
+
+;; given a jsexpr, serialize it into a byte-string:
+(define (jsexpr->response-bytes jsexpr)
+  (string->bytes/utf-8 (jsexpr->json jsexpr)))
+
 ;; THIS LAYER DEALS WITH STRINGS & BYTES
+
+;; C->s
 
 ;; given a url and a string, send the string to the URL and wait for a response.
 (define (remote-evaluator-call/bytes url-string str)
@@ -97,6 +132,7 @@
                 "response code: expected 200, got: ~v" 
                 reply-code)]))
 
+;; C->s
 
 ;; given a string, format it as the bytes to be attached to the post
 ;; request
@@ -104,6 +140,8 @@
   ;; I think this form-urlencoded-encoded is totally unnecessary; I think the 
   ;; json encoding is already clean.
   (string->bytes/utf-8 (string-append "request=" (form-urlencoded-encode str))))
+
+;; c->S
 
 ;; translate the post-bytes back into a string
 (define (post-bytes->str post-bytes)
@@ -114,26 +152,12 @@
     [other (error 'post-bytes->str "badly formatted request: ~s" other)]))
 
 
-;; SERVER-SIDE FUNCTION:
+;; c->S
 
 ;; given post-bytes, map it back to a list of two association lists.
 (define (post-bytes->args-n-fields post-bytes)
   (jsexpr->args-n-fields (json->jsexpr (post-bytes->str post-bytes))))
 
-(check-equal? (post-bytes->str (str->post-bytes "a\"oo\"oht& ;h.th"))
-              "a\"oo\"oht& ;h.th")
-
-
-;; this test case shouldn't depend on the ordering of the elements of the list, but 
-;; it does.
-(check-equal? (match (jsexpr->args-n-fields 
-                      (make-eval-jsexpr '((a . "b") (c . "d"))
-                                        '((e . "f") (g . "h"))))
-                [(list (list-no-order '(a . "b") '(c . "d"))
-                       (list-no-order '(g . "h") '(e . "f")))
-                 #t]
-                [other #f])
-              #t)
 
 
 ;; check that a given URL is alive and responds with a json result to a trivial 
@@ -148,6 +172,41 @@
 
 
 
+;; TEST CASES
 
+(check-equal? (match (post-bytes->args-n-fields
+                      (str->post-bytes (jsexpr->json
+                                        (make-eval-jsexpr
+                                         '((a . "234")
+                                           (b . "2778029"))
+                                         '((c . "onteuh")
+                                           (d . "ootoho"))))))
+                [(list (list-no-order '(a . "234")
+                                      '(b . "2778029"))
+                       (list-no-order '(c . "onteuh")
+                                      '(d . "ootoho")))
+                 #t]
+                [other #f])
+              #t)
+
+(check-equal? (match (jsexpr->args-n-fields 
+                      (make-eval-jsexpr '((a . "b") (c . "d"))
+                                        '((e . "f") (g . "h"))))
+                [(list (list-no-order '(a . "b") '(c . "d"))
+                       (list-no-order '(g . "h") '(e . "f")))
+                 #t]
+                [other #f])
+              #t)
+
+
+
+(check-equal? (post-bytes->str (str->post-bytes "a\"oo\"oht& ;h.th"))
+              "a\"oo\"oht& ;h.th")
+
+
+(check-equal? (decode-html-from-transport 
+               (encode-html-for-transport
+                `(foo (|@| (size "19") (h "apple")) "abc " (i "def") " ghi")))
+              `(foo (|@| (size "19") (h "apple")) "abc " (i "def") " ghi"))
 
 

@@ -141,12 +141,13 @@
      (run-lab lab))))
 
 
-
+(define show-off-example
+  (try-one-evaluator (c-parser-box "f((3+4)/7,234.3)")))
 
 
 ;; WHAT SHOULD WE ACTUALLY RUN?
-(go
- (try-one-evaluator (c-parser-box "(3+4)/7"))
+(go 
+ show-off-example
  #;(the-lab))
 
 

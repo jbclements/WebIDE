@@ -131,9 +131,9 @@
    TEXT/HTML-MIME-TYPE ;; should change? maybe not.
    empty
    (list
-    (string->bytes/utf-8 
-     (jsexpr->json 
-      (make-immutable-hasheq `((status . ,tag) (message . ,text))))))))
+    (jsexpr->response-bytes 
+     (make-immutable-hasheq 
+      `((status . ,tag) (message . ,(encode-html-for-transport text))))))))
 
 
 

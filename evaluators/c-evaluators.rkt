@@ -11,6 +11,7 @@
 ;; FIXME:
 ;; - line breaks in user code
 ;; - extend to handle stmts too
+;; - this parser is probably sensitive to the order of, e.g., "const" & "volatile"
 
 
 (provide any-c-int
@@ -137,8 +138,9 @@
                     (vector-length user-vec)))
            ;; ignore the struct type & source posn, recur on the rest:
            (for/and ([i (in-range 2 (vector-length user-vec))])
-             (parsed-exp-equal? (vector-ref correct-vec i)
-                                (vector-ref user-vec i) user-src)))
+             (parsed-exp-equal?  (vector-ref correct-vec i)
+                                 (vector-ref user-vec i)
+                                 user-src)))
          (match (vector-ref correct-vec 0)
            ['struct:expr:binop
             (unless (eq? (id:op-name (expr:binop-op user-parsed))
@@ -147,12 +149,29 @@
                          #:msg wrong-operator-msg))
             (check-subfields)]
            [other (check-subfields)])]
-        
-        #;[(pair? user-parsed)
-         (cond [(pair? correct-parsed)
-                (and )])]
-        #;[(and )]
-        #;[]
+        [(or (struct? user-parsed) (struct? correct-parsed))
+         (error 'parsed-exp-equal?
+                "internal error 201103221829: one struct, one non-struct: ~a and ~a"
+                correct-parsed
+                user-parsed)]
+        ;; handle lists (as e.g. in argument lists)
+        [(and (list? user-parsed) (list? correct-parsed))
+         (cond [(< (length user-parsed) (length correct-parsed))
+                (fail-jump (join-srcs (map expr-src user-parsed))
+                           #:msg missing-elements-msg)]
+               [(< (length correct-parsed) (length user-parsed))
+                (fail-jump (join-srcs (map expr-src user-parsed))
+                           #:msg extra-elements-msg)]
+               [else
+                (for/and ([c (in-list correct-parsed)]
+                          [u (in-list user-parsed)])
+                  (parsed-exp-equal? c u parent-src))])]
+        [(or (list? user-parsed) (list? correct-parsed))
+         (error 'parsed-exp-equal?
+                "internal error 201103221830: one list, one non-list: ~a and ~a"
+                correct-parsed
+                user-parsed)]
+        ;; handle everything else
         [else (fail-wrap (equal? user-parsed correct-parsed) parent-src)]))
 
 
@@ -181,12 +200,30 @@
                      (span (|@| (style "border: 1px solid rgb(50, 50, 50); background-color : rgb(250,200,200);")) ,middle)
                      ,post)))))
 
+;; join-srcs : create a new synthetic source expression that spans a
+;; list of existing ones, use #f for the path
+(define (join-srcs losrcs)
+  (define f (argmin src-start-offset losrcs))
+  (define l (argmax src-end-offset losrcs))
+  (src (src-start-offset f)
+       (src-start-line f)
+       (src-start-col f)
+       (src-end-offset l)
+       (src-end-line l)
+       (src-end-col l)
+       #f))
+
+
 (define wrong-expr-kind-msg
   "I wasn't expecting this kind of expression here:")
 (define default-error-msg
   "It looks like you need to fix the boxed part:")
 (define wrong-operator-msg
   "I expected a different operator here:")
+(define extra-elements-msg
+  "I found more elements than I expected, here:")
+(define missing-elements-msg 
+  "I found fewer elements than I expected, here:")
 
 
 ;; TESTING
@@ -232,9 +269,12 @@
 ;; check operators first:
 (check-equal? (p-test "3 + 4" "5 * 7")
               (fail-msg 3 4 "5 * 7" #:msg wrong-operator-msg))
-;; missing elements in functions:
+;; missing arguments in funcalls:
 (check-equal? (p-test "f(3,4,6)" "f(x)")
-              (fail-msg 4 4 "f(x)"))
+              (fail-msg 3 4 "f(x)" #:msg missing-elements-msg))
+;; extra arguments in funcalls:
+(check-equal? (p-test "f(3,4)" "f(0,0,0,0)")
+              (fail-msg 3 10 "f(0,0,0,0)" #:msg extra-elements-msg))
 
 ;; this level can catch syntactic errors:
 
@@ -269,5 +309,13 @@
  (c-parser-match '((pattern . "3 + 4"))
                  '((blah . "6 + 4")))
  (fail-msg 1 2 "6 + 4"))
+
+
+(check-equal? 
+ (join-srcs
+  (list (src 8 1 7 12 1 11 #f)
+        (src 3 1 2 4 1 3 #f)
+        (src 5 1 4 6 1 5 #f)))
+ (src 3 1 2 12 1 11 #f))
 
 ;; need test cases for fail-msg, but it's evolving too fast...
