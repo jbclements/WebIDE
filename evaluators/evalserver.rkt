@@ -93,7 +93,7 @@
 ;; log an error, return it to the user
 (define (log-and-return escaper status message)
   (log-error message)
-  (escaper (make-webide-response status message)))
+  (escaper (make-webide-response `((status . ,status) (message . ,message)))))
 
 (define (approx-age-header-checker args textfields)
   (match (dict-map textfields (lambda (k v) v))
@@ -117,13 +117,13 @@
 ;; turn an evaluator response into a webide response
 (define (result->response result)
   (match result
-    [(success) (make-webide-response "success" "success")]
-    [(failure msg) (make-webide-response "failure" msg)]
-    [(serverfail msg) (make-webide-response "serverfail" msg)]
-    [(callerfail msg) (make-webide-response "callerfail" msg)]))
+    [(success) (make-webide-response `((status . "success")))]
+    [(failure msg) (make-webide-response `((status . "failure") (message . ,(encode-html-for-transport msg))))]
+    [(serverfail msg) (make-webide-response `((status . "serverfail") (message . ,msg)))]
+    [(callerfail msg) (make-webide-response `((status . "callerfail") (message . ,msg)))]))
 
 ;; format a response
-(define (make-webide-response tag text)
+(define (make-webide-response assoc)
   (response/full
    200
    #"Okay"
@@ -132,8 +132,7 @@
    empty
    (list
     (jsexpr->response-bytes 
-     (make-immutable-hasheq 
-      `((status . ,tag) (message . ,(encode-html-for-transport text))))))))
+     (make-immutable-hasheq assoc)))))
 
 
 

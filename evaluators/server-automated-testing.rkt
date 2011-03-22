@@ -44,7 +44,12 @@
 
 (check-equal? (url-alive? "http://bogo-host-that-doesnt-exist.com/") #f)
 
-(define l-u "http://brinckerhoff.org:8025/")
+;; RACKET EVALUATORS
+
+(define l-u 
+  "http://localhost:8025"
+  #;"http://brinckerhoff.org:8025/")
+
 
 (check-equal? (url-alive? l-u) #t)
 (check-equal? (remote-evaluator-call (string-append l-u "alwaysSucceed") '() '())
@@ -77,7 +82,7 @@
 (check-equal? (remote-evaluator-call (string-append l-u "any-c-int") 
                                      '() 
                                      '((dc . "  224 123")))
-              #s(failure "\"  224 123\" doesn't parse as an integer"))
+              #s(failure "couldn't parse input"))
 
 (check-equal? (remote-evaluator-call (string-append l-u "any-c-addition")
                                      '()
@@ -96,7 +101,7 @@
 (check-equal? (remote-evaluator-call (string-append l-u "c-parser-match")
                                      '((pattern . "234"))
                                      '((dc . "2234")))
-              #s(failure "\"2234\" doesn't match pattern \"234\""))
+              #s(failure (div (p "It looks like you need to fix the boxed part:") (p (span (@ (style "font-family: monospace;")) "" (span (@ (style "border: 1px solid rgb(50, 50, 50); background-color : rgb(250,200,200);")) "2234") "")))))
 
 
 
