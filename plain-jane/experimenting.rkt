@@ -2,7 +2,7 @@
 
 (require web-server/servlet-env
          "page-displayer.rkt"
-         "lab-definition-utils.rkt"
+         "lab-definition-utils-v1.rkt"
          #;(file "/Users/clements/trac-webide/labs/validate-lib.rkt"))
 
 (define eval-server-url-prefix 
@@ -110,8 +110,6 @@
 
 
 
-#;(require (file "/Users/clements/trac-webide/labs/validate-lib.rkt"))
-#;(validate-sxml (the-lab))
 
 
 
@@ -149,10 +147,10 @@
 
 
 ;; WHAT SHOULD WE ACTUALLY RUN?
-(go 
+#;(go 
  #;show-off-example
  (the-lab))
 
 
-
-
+(require (file "/Users/clements/trac-webide/labs/validate-lib.rkt"))
+(validate-sxml (the-lab))

@@ -2,9 +2,9 @@
 
 
 (require rackunit
-         "evaluator-collector.rkt")
+         "evaluator-collector-v1.rkt")
 
-(define namespace-identifier "http://www.web-ide.org/namespaces/labs/2")
+(define namespace-identifier "http://www.web-ide.org/namespaces/labs/1")
 
 ;; utility functions for defining labs:
 
@@ -46,19 +46,16 @@
 
 ;; break a step into paragraphs at blank lines:
 (define (par-break content-list)
-  (map par-wrap (discard-empties (split-at-double-newlines content-list))))
+  (double-nl->break content-list))
 
 
-
-;; split a list into sub-lists, where every instance of 'elt' separates
-;; lists
-(define (split-at-double-newlines l)
-  (let loop ([so-far '()]
-             [remaining l])
+(define (double-nl->break l)
+  (let loop ([remaining l])
     (match remaining
       [`() (list (reverse so-far))]
-      [`("\n" "\n" . ,r) (cons (reverse (cons "\n" so-far)) (loop '() r))]
-      [`(,f . ,r) (loop (cons f so-far) r)])))
+      [`("\n" "\n" . ,r) (cons '(br) "\n" '(br) "\n" (loop r))]
+      [`(,f . ,r) (cons f (loop r))])))
+
 
 ;; remove empty lists from a list of lists
 (define (discard-empties l)
@@ -99,16 +96,17 @@
     `(w1:div
       (pre-evaluator 
        (|@| (href ,url)
-            (name ,new-evaluator-id))
+            (name ,new-evaluator-id)
+            ;; added for v1
+            (labid "bogo"))
        ,@(map arg->eval-arg args)
-       (w1:userfieldArg (w1:name "userText") 
-                        (w1:value ,new-textfield-id)))
-      (w1:userfield (|@| (id ,new-textfield-id))))))
+       (w1:segid (w1:id ,new-textfield-id)))
+      (w1:segment (|@| (id ,new-textfield-id))))))
 
 (define (arg->eval-arg pr)
   (match pr
     [(list a b)
-     `(w1:fixedArg (w1:name ,(symbol->string a)) (w1:value ,b))]))
+     `(w1:arg (w1:name ,(symbol->string a)) (w1:value ,b))]))
 
 ;; GENERATE FRESH TEXTFIELD-IDs and EVALUATOR-IDs
 
@@ -141,4 +139,4 @@
 
 (check-equal? (par-break 
                '("\n" "abc" "\n" "def" "\n" "\n" "ghi" "\n" "\n" "\n" "jkl" "\n" "\n"))
-              '((w1:p "\n" "abc""\n" "def""\n") (w1:p "ghi" "\n") (w1:p "\n" "jkl" "\n")))
+              '("\n" "abc"  "\n" "def" "\n" "\n" "ghi" "\n" "\n" "\n" "jkl" "\n" "\n"))

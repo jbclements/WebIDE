@@ -48,7 +48,7 @@
 
 (define l-u 
   #;"http://localhost:8025"
-  "http://brinckerhoff.org:8025/")
+  #;"http://brinckerhoff.org:8025/")
 
 
 (check-equal? (url-alive? l-u) #t)
