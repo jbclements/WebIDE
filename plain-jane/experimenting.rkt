@@ -7,11 +7,10 @@
 
 (define eval-server-url-prefix 
   ;; remote host:
-  #;"http://brinckerhoff.org:8025/"
+  "http://brinckerhoff.org:8025/"
   ;; intra-process
-  "evaluator://"
+  #;"evaluator://"
   )
-
 
 ;; FIXME: 
 ;; - paragraph wrapping
@@ -19,7 +18,8 @@
 (define (the-lab) 
   (lab 
    "First C Lab"
-   @step["Integers" #:dependencies `()]{ 
+   @step["Integers" #:dependencies `()]{
+ @h3{Integers}
  
  The first step in any programming task is to think about the kinds of 
  data that you need, and the first step in learning a new programming 
@@ -147,8 +147,8 @@
 
 ;; WHAT SHOULD WE ACTUALLY RUN?
 (go 
- show-off-example
- #;(the-lab))
+ #;show-off-example
+ (the-lab))
 
 
 

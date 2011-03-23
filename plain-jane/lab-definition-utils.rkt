@@ -36,8 +36,32 @@
 (define (step name 
              #:dependencies [dependencies `()]
              . content)
-  `(pre-step (|@| (name ,name)) ,@content))
+  `(pre-step (|@| (name ,name)) ,@(par-break content)))
 (define (h3 . content) (cons 'w1:h3 content))
+
+;; break a step into paragraphs at blank lines:
+(define (par-break content-list)
+  (map par-wrap (discard-empties (split-at-double-newlines content-list))))
+
+
+
+;; split a list into sub-lists, where every instance of 'elt' separates
+;; lists
+(define (split-at-double-newlines l)
+  (let loop ([so-far '()]
+             [remaining l])
+    (match remaining
+      [`() (list (reverse so-far))]
+      [`("\n" "\n" . ,r) (cons (reverse (cons "\n" so-far)) (loop '() r))]
+      [`(,f . ,r) (loop (cons f so-far) (rest remaining))])))
+
+;; remove empty lists from a list of lists
+(define (discard-empties l)
+  (filter (lambda (x) (not (empty? x))) l))
+
+;; prepend the symbol 'w1:p to a list
+(define (par-wrap elts) (cons 'w1:p elts))
+
 
 ;; a short-cut for defining tag-like functions:
 (define-syntax (define-tag-helper stx)
@@ -100,3 +124,16 @@
 (define (box&button url args)
   (buttonregion (box url args)))
 
+
+;; TESTING
+
+
+;; blurg... the existing behavior is probably good enough, but I can't write 
+;; a test case for it in good conscience...
+#;(check-equal? (split-at-double-newlines '(a "\n" b "\n" "\n" d "\n" e "\n" "\n" d "\n" "\n" "\n" e
+                                            "\n" "\n" "\n"))
+              '((a "\n" b "\n") (d "\n" e "\n") (d "\n") () ("\n" e "\n") () ()))
+
+(check-equal? (par-break 
+               '("\n" "abc" "\n" "def" "\n" "\n" "ghi" "\n" "\n" "\n" "jkl" "\n" "\n"))
+              '((w1:p "\n" "abc""\n" "def""\n") (w1:p "ghi" "\n") (w1:p "\n" "jkl" "\n")))
