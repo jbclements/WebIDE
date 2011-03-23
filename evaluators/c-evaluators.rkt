@@ -29,7 +29,8 @@
    (lambda (usertext)
      (catch-reader-parser-errors
       (lambda ()
-        (cond [(parses-as-int? usertext) (success)]
+        (cond [(equal? usertext "") (failure empty-input-msg)]
+              [(parses-as-int? usertext) (success)]
               [else (failure (format "~v doesn't parse as an integer"
                                      usertext))]))))))
 
@@ -46,7 +47,8 @@
    (lambda (usertext)
      (catch-reader-parser-errors
       (lambda ()
-        (cond [(parses-as-addition? usertext) (success)]
+        (cond [(equal? usertext "") (failure empty-input-msg)]
+              [(parses-as-addition? usertext) (success)]
               [else (failure 
                      (format "~v doesn't parse as the sum of two integers"
                              usertext))]))))))

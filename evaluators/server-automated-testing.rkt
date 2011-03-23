@@ -109,6 +109,11 @@
                                      '((dc . "")))
               #s(failure (div "This box is empty.")))
 
+(check-equal? (remote-evaluator-call (string-append l-u "any-c-int")
+                                     '()
+                                     '((dc . "")))
+              #s(failure (div "This box is empty.")))
+
 
 
 
