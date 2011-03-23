@@ -137,6 +137,9 @@
 ;; run the lab, using the plain-jane WebIDE agent:
 (define (go lab)
   (serve/servlet 
+   #:listen-ip #f
+   #:port 7980
+   #:servlet-regexp #px"" ;; intercept all requests
    (lambda (request)
      (run-lab lab))))
 
