@@ -1,6 +1,7 @@
 #lang racket
 
 (require (planet dherman/json:3:0)
+         (planet clements/sxml2)
          net/url
          net/uri-codec
          rackunit
@@ -69,13 +70,24 @@
 
 ;; encode-html-for-transport : map sxml to representation that everyone likes
 (define (encode-html-for-transport sxml)
-  ;; until I find out what WebIDE likes, I'm just using "write":
-  (format "~s" sxml))
+  (srl:sxml->xml sxml))
 
 ;; decode-html-from-transport : map representation that everyone likes to sxml
-;; NB: the simple "write" representation doesn't work for sometimes-sxml-sometimes-not.
+;; okay, we're going to assume a single xml element comes across the wire
 (define (decode-html-from-transport str)
-  (call-with-input-string str read))
+  (call-with-input-string 
+   (string-append "<div>"str"</div>") 
+   (lambda (port)
+     (with-handlers ([exn:fail?
+                      (lambda (e)
+                        (string-append "unparsable string: " str))])
+       (match (ssax:xml->sxml port '())
+         [`(*TOP* (|@| . ,dc) ,content) content]
+         [`(*TOP* ,content) content]
+         [other (error 'decode-html-from-transport
+                       "internal error 201103230517 parsed xml missing *TOP* node: ~s" 
+                       other)])))))
+
 
 
 ;; composing these two yields the identity, for assoc lists mapping symbols to
@@ -174,6 +186,7 @@
 
 ;; TEST CASES
 
+
 (check-equal? (match (post-bytes->args-n-fields
                       (str->post-bytes (jsexpr->json
                                         (make-eval-jsexpr
@@ -203,10 +216,11 @@
 (check-equal? (post-bytes->str (str->post-bytes "a\"oo\"oht& ;h.th"))
               "a\"oo\"oht& ;h.th")
 
+(check-equal? (decode-html-from-transport "abc&nbsp;de")
+              "unparsable string: abc&nbsp;de")
+
 
 (check-equal? (decode-html-from-transport 
                (encode-html-for-transport
                 `(foo (|@| (size "19") (h "apple")) "abc " (i "def") " ghi")))
-              `(foo (|@| (size "19") (h "apple")) "abc " (i "def") " ghi"))
-
-
+              `(div (foo (|@| (size "19") (h "apple")) "abc " (i "def") " ghi")))
