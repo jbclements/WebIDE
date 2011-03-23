@@ -47,7 +47,7 @@
 ;; RACKET EVALUATORS
 
 (define l-u 
-  #;"http://localhost:8025"
+  "http://localhost:8025"
   #;"http://brinckerhoff.org:8025/")
 
 
