@@ -24,12 +24,14 @@
 ;; take the text supplied by the user,
 ;; check that it parses to an int
 (define (any-c-int args texts)
-  (define usertext (extract-1-user-string texts))
-  (catch-reader-parser-errors
-   (lambda ()
-     (cond [(parses-as-int? usertext) (success)]
-           [else (failure (format "~v doesn't parse as an integer"
-                                  usertext))]))))
+  (run-one-with-matcher
+   texts
+   (lambda (usertext)
+     (catch-reader-parser-errors
+      (lambda ()
+        (cond [(parses-as-int? usertext) (success)]
+              [else (failure (format "~v doesn't parse as an integer"
+                                     usertext))]))))))
 
 (define (parses-as-int? str)
   (match (parse-expression str)
@@ -39,13 +41,15 @@
 
 ;; abstraction needed here...
 (define (any-c-addition args texts)
-  (define usertext (extract-1-user-string texts))
-  (catch-reader-parser-errors
-   (lambda ()
-     (cond [(parses-as-addition? usertext) (success)]
-           [else (failure 
-                  (format "~v doesn't parse as the sum of two integers"
-                          usertext))]))))
+  (run-one-with-matcher
+   texts
+   (lambda (usertext)
+     (catch-reader-parser-errors
+      (lambda ()
+        (cond [(parses-as-addition? usertext) (success)]
+              [else (failure 
+                     (format "~v doesn't parse as the sum of two integers"
+                             usertext))]))))))
 
 ;; does this string parse as (+ (int) (int)) ?
 ;; what to do on a parse error?
@@ -64,8 +68,15 @@
   ;; patterns are just going to be strings, for now.
   (define pattern (cdr (assoc 'pattern args)))
   (define matcher (pattern->matcher pattern))
-  (define usertext (extract-1-user-string texts))
-  (matcher usertext))
+  (run-one-with-matcher texts matcher))
+
+;; extract the one text, run the matcher on it
+(define (run-one-with-matcher texts matcher)
+  (match texts
+    [`((,dc . ,usertext)) 
+     (matcher usertext)]
+    [other (callerfail 
+            (format "lab spec provided wrong number of user fields in ~v" texts))]))
 
 ;; for now, a "pattern" is just a string containing a parsable C expression
 (define (pattern->matcher pat)
@@ -87,23 +98,19 @@
                      (failure "couldn't parse input"))])
     (thunk)))
 
-;; return the one user string. If more or less 
-;; than one, signal an error
-(define (extract-1-user-string texts)
-  (match texts
-    [`((,dc . ,usertext)) usertext]
-    [other (error 'extract-1-user-string 
-                  "lab spec provided wrong number of user fields in ~v" texts)]))
 
 ;; compare-parsed : correct-parsed user-parsed -> (or/c success? failure?)
 (define (compare-parsed correct-parsed usertext)
-  (define user-parsed (parse-expression usertext))
-  (with-handlers ([procedure? (lambda (fail-maker) 
-                                (fail-maker usertext))])
-    (begin (unless (struct? user-parsed)
-             (error 'compare-parsed "internal error 20110321-19:44, expected user parsed to be a struct"))
-           (parsed-exp-equal? correct-parsed user-parsed #f)
-           (success))))
+  (cond [(equal? usertext "")
+         (failure empty-input-msg)]
+        [else
+         (define user-parsed (parse-expression usertext))
+         (with-handlers ([procedure? (lambda (fail-maker) 
+                                       (fail-maker usertext))])
+           (begin (unless (struct? user-parsed)
+                    (error 'compare-parsed "internal error 20110321-19:44, expected user parsed to be a struct"))
+                  (parsed-exp-equal? correct-parsed user-parsed #f)
+                  (success)))]))
 
 ;; parsed-exp-equal? : parsed parsed src-offset src-offset -> boolean
 ;; determine whether two parsed structures are the same up to source positions
@@ -224,6 +231,8 @@
   "I found more elements than I expected, here:")
 (define missing-elements-msg 
   "I found fewer elements than I expected, here:")
+(define empty-input-msg
+  "This box is empty.")
 
 
 ;; TESTING
@@ -275,6 +284,9 @@
 ;; extra arguments in funcalls:
 (check-equal? (p-test "f(3,4)" "f(0,0,0,0)")
               (fail-msg 3 10 "f(0,0,0,0)" #:msg extra-elements-msg))
+;; decent error message on empty string:
+(check-equal? (p-test "f(3,4)" "")
+              (failure empty-input-msg))
 
 ;; this level can catch syntactic errors:
 
@@ -295,10 +307,6 @@
 
 
 
-(check-equal? (extract-1-user-string '((foo . "bar"))) "bar")
-(check-exn exn:fail? (lambda ()
-                        (extract-1-user-string '((foo . "bar")
-                                                 (baz . "quux")))))
 
 (check-equal? 
  (c-parser-match '((pattern . "foo"))

@@ -104,6 +104,12 @@
               #s(failure (div (div (p "It looks like you need to fix the boxed part:") (p (span (@ (style "font-family: monospace;")) (span (@ (style "border: 1px solid rgb(50, 50, 50); background-color : rgb(250,200,200);")) "2234")))))))
 
 
+(check-equal? (remote-evaluator-call (string-append l-u "c-parser-match")
+                                     '((pattern . "f(x)"))
+                                     '((dc . "")))
+              #s(failure (div "This box is empty.")))
+
+
 
 
 
