@@ -2,10 +2,12 @@
 
 (require (planet jaymccarthy/mongodb)
          web-server/http/request-structs
-         net/url)
+         net/url
+         srfi/19
+         "shared.rkt")
 
 (provide log-incoming-eval-request
-         #;log-outgoing-eval-result)
+         log-outgoing-eval-result)
 
 (define m (create-mongo))
 (define d (mongo-db m "webideEvalLog"))
@@ -15,7 +17,7 @@
 ;; log-incoming-eval-request : request? -> bson-objectid?
 (define (log-incoming-eval-request request)
   (define oid (new-bson-objectid))
-  (define timestamp (current-seconds))
+  (define timestamp (current-time time-utc))
   (define request-bson
     `((method . ,(request-method request))
       (uri . ,(url->string (request-uri request)))
@@ -31,6 +33,13 @@
       (request . ,request-bson)))
   (mongo-collection-insert-one! requests log-doc)
   oid)
+
+
+(define (log-outgoing-eval-result oid result)
+  (define timestamp (current-time time-utc))
+  (mongo-collection-insert-one! results `((timestamp . ,timestamp)
+                                          (request-id . ,oid)
+                                          (result . ,result))))
 
 
 (define (header->bson header)

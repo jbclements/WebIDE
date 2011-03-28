@@ -50,8 +50,9 @@
                                   path-string))))])
         (check-fields abort uri "args" required-args args-assoc)
         (check-fields abort uri "textfields" required-fields textfields-assoc)
-        (result->response
-         (evaluator args-assoc textfields-assoc))))))
+        (define result-dict (result->dict (evaluator args-assoc textfields-assoc)))
+        (log-outgoing-eval-result logged-request-tag result-dict)
+        (make-webide-response result-dict)))))
 
 ;; url-path->path : (listof path/param) -> string
 (define (url-path->path aborter url-path)
@@ -116,14 +117,16 @@
     ("any-c-addition" (() () ,any-c-addition))
     ("c-parser-match" ((pattern) () ,c-parser-match))))
 
+
 ;; turn an evaluator response into a webide response
-(define (result->response result)
+(define (result->dict result)
   (match result
     ;; adding success error message again, to make WebIDE happy:
-    [(success) (make-webide-response `((status . "success") (message . "Good Job!")))]
-    [(failure msg) (make-webide-response `((status . "failure") (message . ,(encode-html-for-transport msg))))]
-    [(serverfail msg) (make-webide-response `((status . "serverfail") (message . ,msg)))]
-    [(callerfail msg) (make-webide-response `((status . "callerfail") (message . ,msg)))]))
+    [(success)        `((status . "success") (message . "Good Job!"))]
+    [(failure msg)    `((status . "failure") (message . ,(encode-html-for-transport msg)))]
+    [(serverfail msg) `((status . "serverfail") (message . ,msg))]
+    [(callerfail msg) `((status . "callerfail") (message . ,msg))]))
+
 
 ;; format a response
 (define (make-webide-response assoc)
