@@ -34,7 +34,8 @@
 
 
 (define (header->bson header)
-  `((field . ,(header-field header))
+  ;; field names are required to be case-insensitive readable ASCII values, per RFC 822
+  `((field . ,(bytes->string/utf-8 (header-field header)))
     (value . ,(header-value header))))
 
 (define (binding->bson binding)
