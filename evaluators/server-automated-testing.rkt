@@ -33,35 +33,35 @@
   (check-equal? (failure? (remote-evaluator-call amazon-evaluator args textfields))
                 #true))
 
-(amazon-success-equal? sample-args '((groupC . "group = 'C';")))
-(check-amazon-fail? sample-args '((groupC . "234;")))
+(time (amazon-success-equal? sample-args '((groupC . "group = 'C';"))))
+(time (check-amazon-fail? sample-args '((groupC . "234;"))))
 
 
 
 (check-equal? (url-alive? "http://www.berkeley.edu/ohhoeuntesuth") #f)
 
-(check-equal? (not (not (url-alive? amazon-evaluator))) #t)
+(check-equal? (time (not (not (url-alive? amazon-evaluator)))) #t)
 
 (check-equal? (url-alive? "http://bogo-host-that-doesnt-exist.com/") #f)
 
 ;; RACKET EVALUATORS
 
 (define l-u 
-  "http://localhost:8025"
-  #;"http://brinckerhoff.org:8025/")
+  #;"http://localhost:8025"
+  "http://brinckerhoff.org:8025/")
 
 
 (check-equal? (url-alive? l-u) #t)
-(check-equal? (remote-evaluator-call (string-append l-u "alwaysSucceed") '() '())
+(check-equal? (time (remote-evaluator-call (string-append l-u "alwaysSucceed") '() '()))
               (success))
-(check-equal? (remote-evaluator-call (string-append l-u "alwaysSucceed")
+(check-equal? (time (remote-evaluator-call (string-append l-u "alwaysSucceed")
                                      '((glorp . "glorg"))
                                      '((frotzle . "dingdong")
-                                       (zigzay . "blotz")))
+                                       (zigzay . "blotz"))))
               (success))
 
 ;; REGRESSION TESTING ON JAVA HEADER EVALUATOR:
-(check-equal? (remote-evaluator-call (string-append l-u "getApproxAgeHeader") '() '())
+(check-equal? (time (remote-evaluator-call (string-append l-u "getApproxAgeHeader") '() '()))
               #s(serverfail "request must have exactly one text field"))
 
 (check-equal? (remote-evaluator-call (string-append l-u "getApproxAgeHeader") 
