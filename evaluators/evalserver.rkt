@@ -10,7 +10,7 @@
          "shared.rkt"
          "transport.rkt"
          ;; temporarily disabling logging:
-         #;"mongodb-logger.rkt")
+         "mongodb-logger.rkt")
 
 
 (define (start request)
@@ -24,7 +24,7 @@
                         (format "internal error: ~s" 
                                 (exn-message exn))))])
       (log-debug "received request")
-      #;(define logged-request-tag (log-incoming-eval-request request))
+      (define logged-request-tag (log-incoming-eval-request request))
       (define uri (request-uri request))
       (define post-data (request-post-data/raw request))
       (define path-string (url-path->path abort (url-path uri)))

@@ -8,7 +8,7 @@
          #;log-outgoing-eval-result)
 
 (define m (create-mongo))
-(define d (mongo-db m "webide-eval-log"))
+(define d (mongo-db m "webideEvalLog"))
 (define requests (mongo-collection d "requests"))
 (define results (mongo-collection d "results"))
 
