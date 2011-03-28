@@ -2,12 +2,12 @@
 
 (require web-server/servlet-env
          "page-displayer.rkt"
-         "lab-definition-utils-v1.rkt"
+         "lab-definition-utils.rkt"
          #;(file "/Users/clements/trac-webide/labs/validate-lib.rkt"))
 
 (define eval-server-url-prefix 
   ;; remote host:
-  "http://brinckerhoff.org:8025/"
+  "http://localhost:8025/"
   ;; intra-process
   #;"evaluator://"
   )
@@ -147,10 +147,10 @@
 
 
 ;; WHAT SHOULD WE ACTUALLY RUN?
-#;(go 
+(go 
  #;show-off-example
  (the-lab))
 
 
-(require (file "/Users/clements/trac-webide/labs/validate-lib.rkt"))
-(validate-sxml (the-lab))
+#;(require (file "/Users/clements/trac-webide/labs/validate-lib.rkt"))
+#;(validate-sxml (the-lab))
