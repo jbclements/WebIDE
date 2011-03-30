@@ -37,6 +37,21 @@
 (time (check-amazon-fail? sample-args '((groupC . "234;"))))
 
 
+(define (n-times n thunk)
+  (define times
+    (for/list ([i (in-range n)])
+      (let-values ([(result cpu total gc) (time-apply thunk '())])
+        total)))
+  (list (mean times)
+        (sort times <)))
+
+
+(define (mean l) (/ (apply + l) (length l)))
+
+(n-times 10 
+         (lambda ()
+           (amazon-success-equal? sample-args '((groupC . "group = 'C';")))))
+
 
 (check-equal? (url-alive? "http://www.berkeley.edu/ohhoeuntesuth") #f)
 
