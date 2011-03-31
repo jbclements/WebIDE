@@ -38,19 +38,18 @@
                              (format
                               "exception during decoding input data with message: ~a"
                               (exn-message exn))))])
-                      (post-bytes->args-n-fields post-data))]
-                   [(list (list required-args required-fields evaluator)) 
-                    (dict-ref evaluator-table path-string
-                              (lambda ()
-                                (log-and-return
-                                 abort
-                                 "callerfail"
-                                 (format 
-                                  "unknown evaluator path: ~a"
-                                  path-string))))])
-        (check-fields abort uri "args" required-args args-assoc)
-        (check-fields abort uri "textfields" required-fields textfields-assoc)
-        (define result-dict (result->dict (evaluator args-assoc textfields-assoc)))
+                      (post-bytes->args-n-fields post-data))])
+        (define evaluator 
+          (first
+           (dict-ref evaluator-table path-string
+                     (lambda ()
+                       (log-and-return
+                        abort
+                        "callerfail"
+                        (format 
+                         "unknown evaluator path: ~a"
+                         path-string))))))
+        (define result-dict (result->dict (evaluator path-string args-assoc textfields-assoc)))
         (log-outgoing-eval-result logged-request-tag result-dict)
         (make-webide-response result-dict)))))
 
@@ -98,16 +97,13 @@
   (log-error message)
   (escaper (make-webide-response `((status . ,status) (message . ,message)))))
 
-(define (approx-age-header-checker args textfields)
-  (match (dict-map textfields (lambda (k v) v))
-    [(list firstline)
-     (match (birth-year-example firstline)
-       ['success (success)]
-       [(? string? msg) (failure msg)])]
-    [other (callerfail "request must have exactly one text field")]))
+(define (approx-age-header-checker firstline)
+  (match (birth-year-example firstline)
+    ['success (success)]
+    [(? string? msg) (failure msg)]))
 
 
-(define evaluator-table
+#;(define evaluator-table
   ;; each entry requires a path-string and a list containing the list of required arguments,
   ;; the list of required text fields, and the function
   ;; that handles the evaluation.
@@ -116,6 +112,40 @@
     ("any-c-int" (() () ,any-c-int))
     ("any-c-addition" (() () ,any-c-addition))
     ("c-parser-match" ((pattern) () ,c-parser-match))))
+
+(define evaluator-table
+  `(("getApproxAgeHeader"
+     ,(evalpat `(() ((,dontcare . ,usertext))) (approx-age-header-checker usertext)))
+    ("alwaysSucceed"
+     ,(lambda (path args texts) (success)))
+    ("any-c-int" 
+     ,(lambda (path args texts)
+       (match (list args texts)
+         [`(() ((,dontcare . ,usertext))) (any-c-int usertext)])))
+    ("any-c-addition"
+     ,(lambda (path args texts)
+       (match (list args texts)
+         [`(() ((,dontcare . ,usertext))) (any-c-addition usertext)])))
+    ("c-parser-match"
+     ,(lambda (path args texts)
+       (match (list args texts)
+         [`(((pattern . ,pattern)) ((,dontcare . ,usertext))) (c-parser-match pattern usertext)])))))
+
+
+(define-syntax (evalpat stx)
+  (syntax-case stx ()
+    [(_ pat call)
+     #`(lambda (path args texts)
+         (match (list args texts)
+           [pat call]
+           [other (callerfail (format "bad arguments or user texts for path ~s in: ~s and ~s" 
+                                      path args texts))]))]))
+
+(define-syntax (evalpat/1 stx)
+  (syntax-case stx ()
+    [(_ fun)
+     #`(evalpat `(() (,dontcare . ,usertext)) (fun usertext))]))
+
 
 
 ;; turn an evaluator response into a webide response

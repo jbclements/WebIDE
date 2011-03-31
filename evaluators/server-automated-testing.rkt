@@ -48,7 +48,7 @@
 
 (define (mean l) (/ (apply + l) (length l)))
 
-(n-times 10 
+#;(n-times 10 
          (lambda ()
            (amazon-success-equal? sample-args '((groupC . "group = 'C';")))))
 
@@ -62,8 +62,8 @@
 ;; RACKET EVALUATORS
 
 (define l-u 
-  #;"http://localhost:8025"
-  "http://brinckerhoff.org:8025/")
+  "http://localhost:8025"
+  #;"http://brinckerhoff.org:8025/")
 
 
 (check-equal? (url-alive? l-u) #t)
@@ -77,7 +77,7 @@
 
 ;; REGRESSION TESTING ON JAVA HEADER EVALUATOR:
 (check-equal? (time (remote-evaluator-call (string-append l-u "getApproxAgeHeader") '() '()))
-              #s(serverfail "request must have exactly one text field"))
+              #s(serverfail "bad arguments or user texts for path \"getApproxAgeHeader\" in: () and ()"))
 
 (check-equal? (remote-evaluator-call (string-append l-u "getApproxAgeHeader") 
                                      '() '((glorple . "foober")))

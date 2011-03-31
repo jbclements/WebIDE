@@ -16,23 +16,34 @@
 
 (provide any-c-int
          any-c-addition
-         c-parser-match)
+         c-parser-match
+         #;c-stmt-parser-match)
+
+;; this has to be early:
+;; a simple memoizer for non-recursive, one-arg functions:
+(define (memoize-one fun)
+  (define ht (make-hash))
+  (lambda (arg)
+    (hash-ref ht arg
+              (lambda ()
+                (define result (fun arg))
+                (hash-set! ht arg result)
+                result))))
+
+
 
 
 ;; abstract over patterns before trying to do a better job...
 
 ;; take the text supplied by the user,
 ;; check that it parses to an int
-(define (any-c-int args texts)
-  (run-one-with-matcher
-   texts
-   (lambda (usertext)
-     (catch-reader-parser-errors
-      (lambda ()
-        (cond [(equal? usertext "") (failure empty-input-msg)]
-              [(parses-as-int? usertext) (success)]
-              [else (failure (format "~v doesn't parse as an integer"
-                                     usertext))]))))))
+(define (any-c-int usertext)
+  (catch-reader-parser-errors
+   (lambda ()
+     (cond [(equal? usertext "") (failure empty-input-msg)]
+           [(parses-as-int? usertext) (success)]
+           [else (failure (format "~v doesn't parse as an integer"
+                                  usertext))]))))
 
 (define (parses-as-int? str)
   (match (parse-expression str)
@@ -41,17 +52,14 @@
 
 
 ;; abstraction needed here...
-(define (any-c-addition args texts)
-  (run-one-with-matcher
-   texts
-   (lambda (usertext)
-     (catch-reader-parser-errors
-      (lambda ()
-        (cond [(equal? usertext "") (failure empty-input-msg)]
-              [(parses-as-addition? usertext) (success)]
-              [else (failure 
-                     (format "~v doesn't parse as the sum of two integers"
-                             usertext))]))))))
+(define (any-c-addition usertext)
+  (catch-reader-parser-errors
+   (lambda ()
+     (cond [(equal? usertext "") (failure empty-input-msg)]
+           [(parses-as-addition? usertext) (success)]
+           [else (failure 
+                  (format "~v doesn't parse as the sum of two integers"
+                          usertext))]))))
 
 ;; does this string parse as (+ (int) (int)) ?
 ;; what to do on a parse error?
@@ -66,27 +74,31 @@
 
 
 ;; does the given text match the pattern?
-(define (c-parser-match args texts)
+(define (c-parser-match pattern usertext)
   ;; patterns are just going to be strings, for now.
-  (define pattern (cdr (assoc 'pattern args)))
-  (define matcher (pattern->matcher pattern))
-  (run-one-with-matcher texts matcher))
+  ((exp-pattern->matcher pattern) usertext))
 
-;; extract the one text, run the matcher on it
-(define (run-one-with-matcher texts matcher)
-  (match texts
-    [`((,dc . ,usertext)) 
-     (matcher usertext)]
-    [other (callerfail 
-            (format "lab spec provided wrong number of user fields in ~v" texts))]))
+;; does the given statement match the pattern statement?
+(define (c-stmt-parser-match pattern usertext)
+  ((stmt-pattern->matcher pattern) usertext))
+
+
+;; these functions are just *begging* to be memoized.
+(define exp-pattern->matcher
+  (memoize-one (lambda (pat) (pattern->matcher parse-expression pat))))
+
+(define stmt-pattern->matcher
+  (memoize-one (lambda (pat) (pattern->matcher parse-statement pat))))
 
 ;; for now, a "pattern" is just a string containing a parsable C expression
-(define (pattern->matcher pat)
-  (let ([parsed-pattern (parse-expression pat)])
+;; if this is slow, memoization could be *very* successful here.
+(define (pattern->matcher parser pat)
+  (let ([parsed-pattern (parser pat)])
     (lambda (usertext)
       (catch-reader-parser-errors
        (lambda ()
-         (compare-parsed parsed-pattern usertext))))))
+         (compare-parsed parsed-pattern usertext parser))))))
+
 
 
 ;; catch exn:fail:read and exn:fail:syntax, turn them into failures
@@ -102,17 +114,18 @@
 
 
 ;; compare-parsed : correct-parsed user-parsed -> (or/c success? failure?)
-(define (compare-parsed correct-parsed usertext)
+(define (compare-parsed correct-parsed usertext parser)
   (cond [(equal? usertext "")
          (failure empty-input-msg)]
         [else
-         (define user-parsed (parse-expression usertext))
+         (define user-parsed (parser usertext))
          (with-handlers ([procedure? (lambda (fail-maker) 
                                        (fail-maker usertext))])
            (begin (unless (struct? user-parsed)
                     (error 'compare-parsed "internal error 20110321-19:44, expected user parsed to be a struct"))
                   (parsed-exp-equal? correct-parsed user-parsed #f)
                   (success)))]))
+
 
 ;; parsed-exp-equal? : parsed parsed src-offset src-offset -> boolean
 ;; determine whether two parsed structures are the same up to source positions
@@ -237,6 +250,10 @@
   "This box is empty.")
 
 
+
+
+
+
 ;; TESTING
 
 (check-equal? (fail-wrap #true (src 1 2 3 4 5 6 7)) #t)
@@ -247,9 +264,9 @@
 (check-equal? (parses-as-addition? "4 - 6") #f)
 (check-equal? (parses-as-addition? "3 + 4 + 6") #f)
 (check-equal? (parses-as-addition? "4") #f)
-(check-equal? (any-c-addition '() '((doofy . "234 2987"))) 
+(check-equal? (any-c-addition "234 2987") 
               (failure "couldn't parse input"))
-(check-equal? (any-c-addition '() '((frog . "098732")))
+(check-equal? (any-c-addition "098732")
               (failure "couldn't break input into tokens"))
 
 
@@ -257,14 +274,14 @@
 (check-equal? (parses-as-int? "  a") #f)
 (check-equal? (parses-as-int? "  3 // zappa") #t)
 (check-equal? (parses-as-int? "  3.4 // zappa") #f)
-(check-equal? (any-c-int '() '((foof . "098273")))
+(check-equal? (any-c-int "098273")
               (failure "couldn't break input into tokens"))
 
 
 ;; GENERAL PARSER MATCH TESTS
 
 (define (p-test str-a str-b)
-  (compare-parsed (parse-expression str-a) str-b))
+  (compare-parsed (parse-expression str-a) str-b parse-expression))
 
 (check-equal? (p-test "234" "  234 /*oth*/") (success))
 (check-equal? (p-test "234" "  235 /*oth*/") (fail-msg 3 6 "  235 /*oth*/"))
@@ -292,32 +309,45 @@
 
 ;; this level can catch syntactic errors:
 
-(check-equal? ((pattern->matcher "((x + 34) + 22)") "x+34+22") (success))
-(check-equal? ((pattern->matcher "((x + 34) + 22)") "x+35+22") 
+(check-equal? ((pattern->matcher parse-expression "((x + 34) + 22)") "x+34+22") (success))
+(check-equal? ((pattern->matcher parse-expression "((x + 34) + 22)") "x+35+22") 
               (fail-msg 3 5 "x+35+22"))
-(check-equal? ((pattern->matcher "((x + 34) + 22)") "x+35+ +22;") 
+(check-equal? ((pattern->matcher parse-expression "((x + 34) + 22)") "x+35+ +22;") 
               (failure "couldn't parse input"))
 
 
 ;; test the wrapper function:
-(check-equal? (c-parser-match '((pattern . "((x + 34) + 22)"))
-                              '((frog . "x+34+22")))
+(check-equal? (c-parser-match "((x + 34) + 22)"
+                              "x+34+22")
               (success))
-(check-equal? (failure? (c-parser-match '((pattern . "((x + 34) + 22)"))
-                                        '((frog . "x+34+029"))))
+(check-equal? (failure? (c-parser-match "((x + 34) + 22)"
+                                        "x+34+029"))
               #t)
 
+;; once again on statements:
+
+(define (s-test str-a str-b)
+  (compare-parsed (parse-statement str-a) str-b parse-statement))
+
+(check-equal? (s-test "234;" "  234 /*oth*/;") (success))
+(check-equal? (s-test "234;" "  235 /*oth*/;") (fail-msg 3 6 "  235 /*oth*/;"))
+(check-equal? (s-test "if (3 < 4) { return 4; } else {return 2;}"
+                      "if    ((3 < 4)) return 4; else return 2;") (success))
+(check-equal? (s-test "if (3 < 4) { return 4; } else {return 2;}"
+                      "if    ((3 < 4)) return 4+3; else return 2;") 
+              (fail-msg 23 27 
+                        "if    ((3 < 4)) return 4+3; else return 2;"
+                        #:msg wrong-expr-kind-msg))
 
 
 
-(check-equal? 
- (c-parser-match '((pattern . "foo"))
-                 '((blah . "foo")))
+
+
+(check-equal? (c-parser-match "foo" "foo")
  #s(success))
 
 (check-equal? 
- (c-parser-match '((pattern . "3 + 4"))
-                 '((blah . "6 + 4")))
+ (c-parser-match "3 + 4" "6 + 4")
  (fail-msg 1 2 "6 + 4"))
 
 

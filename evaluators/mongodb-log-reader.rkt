@@ -11,6 +11,32 @@
 (define requests (mongo-collection d "requests"))
 (define results (mongo-collection d "results"))
 
+#;(define (extract-failing-submissions)
+  (for/list ([r (mongo-collection-find results '())])
+    (define request (hash-ref r 'request))
+    (define bindings (hash-ref request 'bindings))
+    (match bindings
+      [(vector (hash-table ('id #"request")
+                           ('value bytes)))
+       (define jsexpr (json->jsexpr (bytes->string/utf-8 bytes)))
+       (match jsexpr
+         [(hash-table ('id id)
+                      ('args args)
+                      ('textfields textfields))
+          (list (hash-ref r 'timestamp)
+                (list (hash-ref request 'uri)
+                      args
+                      id)
+                textfields)]
+         [other
+          (list (hash-ref r 'timestamp)
+                (list 'bogus-problem
+                      other)
+                (hash))])]
+      [other (error 'extract-all-requests
+                    "unexpected format for bindings: ~s" 
+                    other)])))
+
 
 (define (extract-all-submissions)
   (for/list ([r (mongo-collection-find requests '())])
