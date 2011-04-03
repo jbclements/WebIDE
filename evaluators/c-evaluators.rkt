@@ -178,8 +178,14 @@
         ;; handle lists (as e.g. in argument lists)
         [(and (list? user-parsed) (list? correct-parsed))
          (cond [(< (length user-parsed) (length correct-parsed))
-                (fail-jump (join-srcs (map expr-src user-parsed))
-                           #:msg missing-elements-msg)]
+                ;; if user-parsed is empty, take source position
+                ;; from parent:
+                (cond [(empty? user-parsed)
+                       (fail-jump parent-src
+                                  #:msg missing-elements-msg)]
+                      [else 
+                       (fail-jump (join-srcs (map expr-src user-parsed))
+                                  #:msg missing-elements-msg)])]
                [(< (length correct-parsed) (length user-parsed))
                 (fail-jump (join-srcs (map expr-src user-parsed))
                            #:msg extra-elements-msg)]
@@ -337,6 +343,12 @@
               (fail-msg 25 28 
                         "if    ((3 < 4)) {return 4+3;} else return 2;"
                         #:msg wrong-struct-kind-msg))
+(check-equal? (s-test "return f(x,15);"
+                      "return f();")
+              (fail-msg 8 11
+                        "return f();"
+                        #:msg missing-elements-msg))
+
 
 (check-equal? (c-stmt-parser-match "if (3 < 4) { return 4; } else {return 2;}"
                                    "if    ((3 < 4)) {return 4+3;} else return 2;")
