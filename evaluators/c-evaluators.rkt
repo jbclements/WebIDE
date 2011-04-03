@@ -131,6 +131,7 @@
 ;; NB: uses a coarse def'n of parseds as either
 ;; structs whose first element is a source position and whose remaining positions are
 ;; - parseds, or
+;; - #f, or
 ;; - lists of parseds, or
 ;; - values comparable with equal?
 
@@ -150,6 +151,9 @@
          (define user-src (vector-ref user-vec 1))
          (unless (equal? (vector-ref user-vec 0) (vector-ref correct-vec 0))
            (fail-jump user-src #:msg wrong-struct-kind-msg))
+         ;; below here we know the two are the same kind of struct.
+         
+         ;; the fall-through procedure:
          (define (check-subfields)
            (unless (= (vector-length user-vec) (vector-length correct-vec))
              (error 'parsed-exp-equal?
@@ -157,19 +161,51 @@
                     (vector-ref correct-vec 0)
                     (vector-length correct-vec)
                     (vector-length user-vec)))
+           
            ;; ignore the struct type & source posn, recur on the rest:
            (for/and ([i (in-range 2 (vector-length user-vec))])
              (parsed-exp-equal?  (vector-ref correct-vec i)
                                  (vector-ref user-vec i)
                                  user-src)))
+         
+         ;; is the user field missing in this slot? (closed over vectors)
+         (define (missing-piece slot)
+           (define vector-index (+ 1 slot))
+           (and (false? (vector-ref user-vec vector-index))
+                (struct? (vector-ref correct-vec vector-index))))
+         
+         ;; special-cases for better error messages:
          (match (vector-ref correct-vec 0)
+           ;; check operator before other elements in binops:
            ['struct:expr:binop
             (unless (eq? (id:op-name (expr:binop-op user-parsed))
                          (id:op-name (expr:binop-op correct-parsed)))
               (fail-jump (id-src (expr:binop-op user-parsed))
                          #:msg wrong-operator-msg))
             (check-subfields)]
+           ;; special-cases for missing expressions
+           ['struct:stmt:if
+            (cond [(missing-piece 3)
+                   (fail-jump user-src #:msg missing-if-alt-msg)]
+                  [else (check-subfields)])]
+           ['struct:stmt:for
+            (cond [(missing-piece 1)
+                   (fail-jump user-src #:msg missing-for-init-msg)]
+                  [(missing-piece 2)
+                   (fail-jump user-src #:msg missing-for-test-msg)]
+                  [(missing-piece 3)
+                   (fail-jump user-src #:msg missing-for-update-msg)]
+                  [else (check-subfields)])]
+           ['struct:stmt:return
+            (cond [(missing-piece 1)
+                   (fail-jump user-src #:msg missing-return-exp-msg)]
+                  [else (check-subfields)])]           
            [other (check-subfields)])]
+        [(and (struct? user-parsed) (false? correct-parsed))
+         (fail-jump (vector-ref (struct->vector user-parsed) 1)
+                    #:msg should-be-absent-msg)]
+        [(and (false? user-parsed) (struct? correct-parsed))
+         (fail-jump )]
         [(or (struct? user-parsed) (struct? correct-parsed))
          (error 'parsed-exp-equal?
                 "internal error 201103221829: one struct, one non-struct: ~a and ~a"
@@ -243,6 +279,18 @@
 
 (define wrong-struct-kind-msg
   "I wasn't expecting this kind of thing here:")
+(define should-be-absent-msg
+  "I didn't expect to find anything here. Try taking out this expression or statement.")
+(define missing-if-alt-msg
+  "This 'if' is missing its 'else' case:")
+(define missing-for-init-msg
+  "This 'for' is missing its initialization expression:")
+(define missing-for-test-msg
+  "This 'for' is missing its test expression:")
+(define missing-for-update-msg
+  "This 'for' is missing its update expression:")
+(define missing-return-exp-msg
+  "This 'return' is missing its argument:")
 (define default-error-msg
   "It looks like you need to fix the boxed part:")
 (define wrong-operator-msg
@@ -348,6 +396,30 @@
               (fail-msg 8 11
                         "return f();"
                         #:msg missing-elements-msg))
+
+
+(check-equal? (s-test "return;"
+                      "return 3;")
+              (fail-msg 8 9
+                        "return 3;"
+                        #:msg should-be-absent-msg))
+
+(check-equal? (s-test "return f(x,15);" "return;")
+              (fail-msg 1 8 "return;"
+                        #:msg missing-return-exp-msg))
+(check-equal? (s-test "if (3) 4; else return 5;" "if (3) 4;")
+              (fail-msg 1 10 "if (3) 4;"
+                        #:msg missing-if-alt-msg))
+(check-equal? (s-test "for (3;4;5) 6;" "for (;4;5) 6;")
+              (fail-msg 1 14 "for (;4;5) 6;"
+                        #:msg missing-for-init-msg))
+(check-equal? (s-test "for (3;4;5) 6;" "for (3;;5) 6;")
+              (fail-msg 1 14 "for (3;;5) 6;"
+                        #:msg missing-for-test-msg))
+(check-equal? (s-test "for (3;4;5) 6;" "for (3;4;) 6;")
+              (fail-msg 1 14 "for (3;4;) 6;"
+                        #:msg missing-for-update-msg))
+
 
 
 (check-equal? (c-stmt-parser-match "if (3 < 4) { return 4; } else {return 2;}"

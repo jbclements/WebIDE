@@ -131,6 +131,18 @@
               #s(success))
 
 
+(check-equal? (remote-evaluator-call (string-append l-u "c-stmt-parser-match")
+                                     '((pattern . "for (3;4;5) 6;"))
+                                     '((frog . "for (3;;5) 6;")))
+              #s(failure (div (div (p "This 'for' is missing its test expression:")
+                                   (p (span (@ (style "font-family: monospace;")) 
+                                            (span 
+                                             (@ (style "border: 1px solid rgb(50, 50, 50); background-color : rgb(250,200,200);"))
+                                             "for (3;;5) 6;")))))))
+
+
+
+
 (check-equal? (remote-evaluator-call (string-append l-u "any-c-int")
                                      '()
                                      '((dc . "")))
