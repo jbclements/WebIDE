@@ -150,7 +150,7 @@
          (define correct-vec (struct->vector correct-parsed))
          (define user-src (vector-ref user-vec 1))
          (unless (equal? (vector-ref user-vec 0) (vector-ref correct-vec 0))
-           (fail-jump user-src #:msg wrong-expr-kind-msg))
+           (fail-jump user-src #:msg wrong-struct-kind-msg))
          (define (check-subfields)
            (unless (= (vector-length user-vec) (vector-length correct-vec))
              (error 'parsed-exp-equal?
@@ -236,8 +236,8 @@
        #f))
 
 
-(define wrong-expr-kind-msg
-  "I wasn't expecting this kind of expression here:")
+(define wrong-struct-kind-msg
+  "I wasn't expecting this kind of thing here:")
 (define default-error-msg
   "It looks like you need to fix the boxed part:")
 (define wrong-operator-msg
@@ -289,11 +289,11 @@
 (check-equal? (p-test "(2342 + 22)" "2343 + 22") (fail-msg 1 5 "2343 + 22"))
 (check-equal? (p-test "((x + 34) + 22)" "x+34+22") (success))
 (check-equal? (p-test "((x + 34) + 22)" "x+(34+22)")
-              (fail-msg 1 2 "x+(34+22)" #:msg wrong-expr-kind-msg))
+              (fail-msg 1 2 "x+(34+22)" #:msg wrong-struct-kind-msg))
 (check-equal? (p-test "((x + 34) + 22)" "y+34+22") (fail-msg 1 2 "y+34+22"))
 ;; wrong type of expression:
 (check-equal? (p-test "3 + 4" "f(x)")
-              (fail-msg 1 5 "f(x)" #:msg wrong-expr-kind-msg))
+              (fail-msg 1 5 "f(x)" #:msg wrong-struct-kind-msg))
 ;; check operators first:
 (check-equal? (p-test "3 + 4" "5 * 7")
               (fail-msg 3 4 "5 * 7" #:msg wrong-operator-msg))
@@ -332,12 +332,12 @@
 (check-equal? (s-test "234;" "  234 /*oth*/;") (success))
 (check-equal? (s-test "234;" "  235 /*oth*/;") (fail-msg 3 6 "  235 /*oth*/;"))
 (check-equal? (s-test "if (3 < 4) { return 4; } else {return 2;}"
-                      "if    ((3 < 4)) return 4; else return 2;") (success))
+                      "if    ((3 < 4)) {return 4;} else {return 2;}") (success))
 (check-equal? (s-test "if (3 < 4) { return 4; } else {return 2;}"
-                      "if    ((3 < 4)) return 4+3; else return 2;") 
-              (fail-msg 23 27 
-                        "if    ((3 < 4)) return 4+3; else return 2;"
-                        #:msg wrong-expr-kind-msg))
+                      "if    ((3 < 4)) {return 4+3;} else return 2;") 
+              (fail-msg 25 28 
+                        "if    ((3 < 4)) {return 4+3;} else return 2;"
+                        #:msg wrong-struct-kind-msg))
 
 
 
