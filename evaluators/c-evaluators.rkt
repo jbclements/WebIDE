@@ -17,7 +17,7 @@
 (provide any-c-int
          any-c-addition
          c-parser-match
-         #;c-stmt-parser-match)
+         c-stmt-parser-match)
 
 ;; this has to be early:
 ;; a simple memoizer for non-recursive, one-arg functions:
@@ -91,7 +91,6 @@
   (memoize-one (lambda (pat) (pattern->matcher parse-statement pat))))
 
 ;; for now, a "pattern" is just a string containing a parsable C expression
-;; if this is slow, memoization could be *very* successful here.
 (define (pattern->matcher parser pat)
   (let ([parsed-pattern (parser pat)])
     (lambda (usertext)
@@ -338,6 +337,15 @@
               (fail-msg 25 28 
                         "if    ((3 < 4)) {return 4+3;} else return 2;"
                         #:msg wrong-struct-kind-msg))
+
+(check-equal? (c-stmt-parser-match "if (3 < 4) { return 4; } else {return 2;}"
+                                   "if    ((3 < 4)) {return 4+3;} else return 2;")
+              (fail-msg 25 28 
+                        "if    ((3 < 4)) {return 4+3;} else return 2;"
+                        #:msg wrong-struct-kind-msg))
+(check-equal? (c-stmt-parser-match "if (3 < 4) { return 4; } else {return 2;}"
+                                   "")
+              (failure empty-input-msg))
 
 
 

@@ -62,8 +62,8 @@
 ;; RACKET EVALUATORS
 
 (define l-u 
-  "http://localhost:8025"
-  #;"http://brinckerhoff.org:8025/")
+  #;"http://localhost:8025"
+  "http://brinckerhoff.org:8025/")
 
 
 (check-equal? (url-alive? l-u) #t)
@@ -123,6 +123,13 @@
                                      '((pattern . "f(x)"))
                                      '((dc . "")))
               #s(failure (div "This box is empty.")))
+
+
+(check-equal? (remote-evaluator-call (string-append l-u "c-stmt-parser-match")
+                                     '((pattern . "if (3 < 4) { return 4; } else {return 2;}"))
+                                     '((frog . "if    ((3 < 4)) {return 4;} else {return 2;}"))) 
+              #s(success))
+
 
 (check-equal? (remote-evaluator-call (string-append l-u "any-c-int")
                                      '()

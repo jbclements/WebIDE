@@ -9,7 +9,6 @@
          rackunit
          "shared.rkt"
          "transport.rkt"
-         ;; temporarily disabling logging:
          "mongodb-logger.rkt")
 
 
@@ -115,23 +114,20 @@
 
 (define evaluator-table
   `(("getApproxAgeHeader"
-     ,(evalpat `(() ((,dontcare . ,usertext))) (approx-age-header-checker usertext)))
+     ,(evalpat `(() ((,dc . ,usertext))) (approx-age-header-checker usertext)))
     ("alwaysSucceed"
      ,(lambda (path args texts) (success)))
     ("any-c-int" 
-     ,(lambda (path args texts)
-       (match (list args texts)
-         [`(() ((,dontcare . ,usertext))) (any-c-int usertext)])))
+     ,(evalpat `(() ((,dc . ,usertext))) (any-c-int usertext)))
     ("any-c-addition"
-     ,(lambda (path args texts)
-       (match (list args texts)
-         [`(() ((,dontcare . ,usertext))) (any-c-addition usertext)])))
+     ,(evalpat `(() ((,dc . ,usertext))) (any-c-addition usertext)))
     ("c-parser-match"
-     ,(lambda (path args texts)
-       (match (list args texts)
-         [`(((pattern . ,pattern)) ((,dontcare . ,usertext))) (c-parser-match pattern usertext)])))))
+     ,(evalpat `(((pattern . ,pattern)) ((,dc . ,usertext))) (c-parser-match pattern usertext)))
+    ("c-stmt-parser-match"
+     ,(evalpat `(((pattern . ,pattern)) ((,dc . ,usertext))) (c-stmt-parser-match pattern usertext)))))
 
-
+;; this pattern abstracts over the common pattern,
+;; allowing you to specify just the desired pattern and the action.
 (define-syntax (evalpat stx)
   (syntax-case stx ()
     [(_ pat call)
