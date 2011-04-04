@@ -108,7 +108,12 @@
                      (failure "couldn't break input into tokens"))]
                   [exn:fail:syntax? 
                    (lambda (exn)
-                     (failure "couldn't parse input"))])
+                     (match (exn:fail:syntax-exprs exn)
+                       [`() (error 'catch-parser-reader-errors
+                                   "internal error, no source position given")]
+                       [other
+                        (failure (last other))])
+                     #;(failure (exn-message exn)))])
     (thunk)))
 
 
@@ -377,6 +382,15 @@
                                         "x+34+029"))
               #t)
 
+;; Parse failures:
+
+(check-equal? 
+ (c-parser-match "123413"
+                 "234 123")
+ (fail-msg 5 8 "234 123"
+           #:msg "uenxpected integer literal"))
+
+
 ;; once again on statements:
 
 (define (s-test str-a str-b)
@@ -451,3 +465,8 @@
  (src 3 1 2 12 1 11 #f))
 
 ;; need test cases for fail-msg, but it's evolving too fast...
+
+
+
+(with-handlers ([exn:fail:syntax? (lambda (exn) exn)])
+  (parse-expression "x ="))
