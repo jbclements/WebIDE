@@ -39,6 +39,7 @@
 ;; check that it parses to an int
 (define (any-c-int usertext)
   (catch-reader-parser-errors
+   usertext
    (lambda ()
      (cond [(equal? usertext "") (failure empty-input-msg)]
            [(parses-as-int? usertext) (success)]
@@ -53,7 +54,7 @@
 
 ;; abstraction needed here...
 (define (any-c-addition usertext)
-  (catch-reader-parser-errors
+  (catch-reader-parser-errors usertext
    (lambda ()
      (cond [(equal? usertext "") (failure empty-input-msg)]
            [(parses-as-addition? usertext) (success)]
@@ -83,7 +84,6 @@
   ((stmt-pattern->matcher pattern) usertext))
 
 
-;; these functions are just *begging* to be memoized.
 (define exp-pattern->matcher
   (memoize-one (lambda (pat) (pattern->matcher parse-expression pat))))
 
@@ -94,7 +94,7 @@
 (define (pattern->matcher parser pat)
   (let ([parsed-pattern (parser pat)])
     (lambda (usertext)
-      (catch-reader-parser-errors
+      (catch-reader-parser-errors usertext
        (lambda ()
          (compare-parsed parsed-pattern usertext parser))))))
 
@@ -102,7 +102,7 @@
 
 ;; catch exn:fail:read and exn:fail:syntax, turn them into failures
 ;; hopefully, we'll be able to do a better job of this, soon.
-(define (catch-reader-parser-errors thunk)
+(define (catch-reader-parser-errors usertext thunk)
   (with-handlers ([exn:fail:read? 
                    (lambda (exn) 
                      (failure "couldn't break input into tokens"))]
@@ -112,7 +112,14 @@
                        [`() (error 'catch-parser-reader-errors
                                    "internal error, no source position given")]
                        [other
-                        (failure (last other))])
+                        (define most-specific (last other))
+                        (define posn (syntax-position most-specific))
+                        (define span (syntax-span most-specific))
+                        (match (list posn span)
+                          [`(,(? number? p) ,(? number? s))
+                           (fail-msg p (+ p s) usertext #:msg (exn-message exn))]
+                          #;[other
+                           (fail-msg 0 ())])])
                      #;(failure (exn-message exn)))])
     (thunk)))
 
@@ -285,7 +292,7 @@
 (define wrong-struct-kind-msg
   "I wasn't expecting this kind of thing here:")
 (define should-be-absent-msg
-  "I didn't expect to find anything here. Try taking out this expression or statement.")
+  "I didn't expect to find anything here. Try taking out this expression or statement:")
 (define missing-if-alt-msg
   "This 'if' is missing its 'else' case:")
 (define missing-for-init-msg
@@ -306,6 +313,7 @@
   "I found fewer elements than I expected, here:")
 (define empty-input-msg
   "This box is empty.")
+(define parse-fail-msg "I got confused while parsing this token:")
 
 
 
@@ -323,7 +331,8 @@
 (check-equal? (parses-as-addition? "3 + 4 + 6") #f)
 (check-equal? (parses-as-addition? "4") #f)
 (check-equal? (any-c-addition "234 2987") 
-              (failure "couldn't parse input"))
+              (fail-msg 5 9 "234 2987"
+                        #:msg "parse: unexpected integer literal"))
 (check-equal? (any-c-addition "098732")
               (failure "couldn't break input into tokens"))
 
@@ -371,7 +380,7 @@
 (check-equal? ((pattern->matcher parse-expression "((x + 34) + 22)") "x+35+22") 
               (fail-msg 3 5 "x+35+22"))
 (check-equal? ((pattern->matcher parse-expression "((x + 34) + 22)") "x+35+ +22;") 
-              (failure "couldn't parse input"))
+              (fail-msg 10 11 "x+35+ +22;" #:msg "parse: unexpected semi-colon (`;')"))
 
 
 ;; test the wrapper function:
@@ -388,7 +397,7 @@
  (c-parser-match "123413"
                  "234 123")
  (fail-msg 5 8 "234 123"
-           #:msg "uenxpected integer literal"))
+           #:msg "parse: unexpected integer literal"))
 
 
 ;; once again on statements:
@@ -464,9 +473,3 @@
         (src 5 1 4 6 1 5 #f)))
  (src 3 1 2 12 1 11 #f))
 
-;; need test cases for fail-msg, but it's evolving too fast...
-
-
-
-(with-handlers ([exn:fail:syntax? (lambda (exn) exn)])
-  (parse-expression "x ="))
