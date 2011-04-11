@@ -105,23 +105,43 @@
 (define (catch-reader-parser-errors usertext thunk)
   (with-handlers ([exn:fail:read? 
                    (lambda (exn) 
-                     (failure "couldn't break input into tokens"))]
+                     (match (exn:fail:read-srclocs exn)
+                       [`() (log-warning "internal error, no source position given (2011-04)")
+                            (failure `(div (p ,(exn-message exn))))]
+                       [(? list? l)
+                        (when (not (= (length l) 1))
+                          (log-warning 
+                           "more than one source position given 20110411"))
+                        ;; we hope there's only one...
+                        (define srcloc (first l))
+                        (posn-span->fail (srcloc-position srcloc)
+                                         (srcloc-span srcloc)
+                                         usertext
+                                         (exn-message exn))]))]
                   [exn:fail:syntax? 
                    (lambda (exn)
                      (match (exn:fail:syntax-exprs exn)
-                       [`() (error 'catch-parser-reader-errors
-                                   "internal error, no source position given")]
+                       [`() (log-warning 
+                             "internal error, no source position given")
+                            (failure `(div (p ,(exn-message exn))))]
                        [other
                         (define most-specific (last other))
-                        (define posn (syntax-position most-specific))
-                        (define span (syntax-span most-specific))
-                        (match (list posn span)
-                          [`(,(? number? p) ,(? number? s))
-                           (fail-msg p (+ p s) usertext #:msg (exn-message exn))]
-                          #;[other
-                           (fail-msg 0 ())])])
-                     #;(failure (exn-message exn)))])
+                        (posn-span->fail (syntax-position most-specific)
+                                         (syntax-span most-specific)
+                                         usertext
+                                         (exn-message exn))]))])
     (thunk)))
+
+;; given position and span and message, produce a fail message:
+(define (posn-span->fail posn span usertext message)
+  (match (list posn span)
+    [`(,(? number? p) ,(? number? s))
+     (fail-msg p (+ p s) usertext #:msg message)]
+    ;; oh dear, fallback:
+    [other
+     (log-warning 
+      (format "parse/read error with no source or span: ~s" (list posn span)))
+     (failure `(div (p ,message)))]))
 
 
 ;; compare-parsed : correct-parsed user-parsed -> (or/c success? failure?)
@@ -334,7 +354,7 @@
               (fail-msg 5 9 "234 2987"
                         #:msg "parse: unexpected integer literal"))
 (check-equal? (any-c-addition "098732")
-              (failure "couldn't break input into tokens"))
+              (fail-msg 1 7 "098732" #:msg "bad number literal: 098732"))
 
 
 (check-equal? (parses-as-int? "  34") #t)
@@ -342,7 +362,7 @@
 (check-equal? (parses-as-int? "  3 // zappa") #t)
 (check-equal? (parses-as-int? "  3.4 // zappa") #f)
 (check-equal? (any-c-int "098273")
-              (failure "couldn't break input into tokens"))
+              (fail-msg 1 7 "098273" #:msg "bad number literal: 098273"))
 
 
 ;; GENERAL PARSER MATCH TESTS
@@ -398,6 +418,12 @@
                  "234 123")
  (fail-msg 5 8 "234 123"
            #:msg "parse: unexpected integer literal"))
+
+;; read failures
+
+(check-equal? 
+ (c-parser-match "abc" "091823740")
+ (fail-msg 1 10 "091823740" #:msg "bad number literal: 091823740"))
 
 
 ;; once again on statements:

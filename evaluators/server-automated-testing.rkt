@@ -97,7 +97,7 @@
 (check-equal? (remote-evaluator-call (string-append l-u "any-c-int") 
                                      '() 
                                      '((dc . "  224 123")))
-              #s(failure (div "couldn't parse input")))
+              #s(failure (div (div (p "#f:1:6: parse: unexpected integer literal in: 123") (p (span (@ (style "font-family: monospace;")) "  224 " (span (@ (style "border: 1px solid rgb(50, 50, 50); background-color : rgb(250,200,200);")) "123")))))))
 
 (check-equal? (remote-evaluator-call (string-append l-u "any-c-addition")
                                      '()
