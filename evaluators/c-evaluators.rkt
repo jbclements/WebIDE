@@ -203,7 +203,7 @@
 ;; - values comparable with equal?
 
 ;; ** okay,right now I'm going off the deep end and special-casing things as they come
-;;    up, to give better error messages . We'll see where this ends....
+;;    up, to give better error messages. We'll see where this ends....
 
 ;; the parent-src is used to report error positions for source terms that are not 
 ;; structs. Because of the data definition we're using, this must be the immediate
@@ -287,10 +287,11 @@
                        (fail-jump parent-src
                                   #:msg missing-elements-msg)]
                       [else 
-                       (fail-jump (join-srcs (map expr-src user-parsed))
+                       (fail-jump (join-srcs (map expr-or-stmt-src 
+                                                  user-parsed))
                                   #:msg missing-elements-msg)])]
                [(< (length correct-parsed) (length user-parsed))
-                (fail-jump (join-srcs (map expr-src user-parsed))
+                (fail-jump (join-srcs (map expr-or-stmt-src user-parsed))
                            #:msg extra-elements-msg)]
                [else
                 (for/and ([c (in-list correct-parsed)]
@@ -303,6 +304,10 @@
                 user-parsed)]
         ;; handle everything else
         [else (fail-wrap (equal? user-parsed correct-parsed) parent-src)]))
+
+;; get the source of either an expr or stmt:
+(define (expr-or-stmt-src expr-or-stmt)
+  (vector-ref (struct->vector expr-or-stmt) 1))
 
 
 ;; fail-wrap : bool src-posn -> #t
@@ -524,6 +529,16 @@
                                    "")
               (failure empty-input-msg))
 
+;; another bug:
+
+(check-equal? (s-test "if (3) {4;} else {5;6;}"
+                     "if (3) {4;} else {5;}")
+             (fail-msg 19 21 "if (3) {4;} else {5;}" #:msg missing-elements-msg))
+(check-equal? (s-test "if (3) {4;} else {5;6;}"
+                     "if (3) {4;} else {5;6;7;}")
+             (fail-msg 19 25 "if (3) {4;} else {5;6;7;}" #:msg extra-elements-msg))
+
+
 ;; bad pattern:
 
 (check-equal? (callerfail? (c-stmt-parser-match "not a c expression"
@@ -531,12 +546,10 @@
               #t)
 
 
-;; oh dear...
-
-(check-equal? (c-stmt-parser-match "123;"
-                                   "if (( color == 'B' ) ||  ( color == 'V')) { dark = 'Y'; } else { dark = 'N'; }")
-              14)
-
+(check-equal? (c-stmt-parser-match "if (( color == 'B' ) ||  ( color == 'V')) { dark = 'Y'; } else { dark = 'N'; }"
+                                   "if (( color == 'B' ) ||  ( color == 'V')) { dark = 'Y'; } else { dark = 'N'; }"
+                                   )
+              #s(success))
 
 
 
