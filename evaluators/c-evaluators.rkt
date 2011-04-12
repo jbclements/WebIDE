@@ -19,6 +19,9 @@
          c-parser-match
          c-stmt-parser-match)
 
+;; this structure is raised to allow an exception handler to exit with a response
+(define-struct abort-with (response))
+
 ;; this has to be early:
 ;; a simple memoizer for non-recursive, one-arg functions:
 (define (memoize-one fun)
@@ -38,13 +41,14 @@
 ;; take the text supplied by the user,
 ;; check that it parses to an int
 (define (any-c-int usertext)
+  (with-handlers ([abort-with? abort-with-response])
   (catch-reader-parser-errors
    usertext
    (lambda ()
      (cond [(equal? usertext "") (failure empty-input-msg)]
            [(parses-as-int? usertext) (success)]
            [else (failure (format "~v doesn't parse as an integer"
-                                  usertext))]))))
+                                  usertext))])))))
 
 (define (parses-as-int? str)
   (match (parse-expression str)
@@ -54,18 +58,18 @@
 
 ;; abstraction needed here...
 (define (any-c-addition usertext)
+  (with-handlers ([abort-with? abort-with-response])
   (catch-reader-parser-errors usertext
    (lambda ()
      (cond [(equal? usertext "") (failure empty-input-msg)]
            [(parses-as-addition? usertext) (success)]
            [else (failure 
                   (format "~v doesn't parse as the sum of two integers"
-                          usertext))]))))
+                          usertext))])))))
 
 ;; does this string parse as (+ (int) (int)) ?
 ;; what to do on a parse error?
 (define (parses-as-addition? str)
-  ;; could be better, wait for abstraction:
   (match (parse-expression str)
     [(struct expr:binop (src_1 (struct expr:int (dc_1 dc_2 dc_3)) 
                                (struct id:op (src2 '+))
@@ -76,12 +80,14 @@
 
 ;; does the given text match the pattern?
 (define (c-parser-match pattern usertext)
-  ;; patterns are just going to be strings, for now.
-  ((exp-pattern->matcher pattern) usertext))
+  (with-handlers ([abort-with? abort-with-response])
+    ;; patterns are just going to be strings, for now.
+    ((exp-pattern->matcher pattern) usertext)))
 
 ;; does the given statement match the pattern statement?
 (define (c-stmt-parser-match pattern usertext)
-  ((stmt-pattern->matcher pattern) usertext))
+  (with-handlers ([abort-with? abort-with-response])
+    ((stmt-pattern->matcher pattern) usertext)))
 
 
 (define exp-pattern->matcher
@@ -92,16 +98,18 @@
 
 ;; for now, a "pattern" is just a string containing a parsable C expression
 (define (pattern->matcher parser pat)
-  (let ([parsed-pattern (parser pat)])
-    (lambda (usertext)
-      (catch-reader-parser-errors usertext
-       (lambda ()
-         (compare-parsed parsed-pattern usertext parser))))))
+  (catch-reader-parser-pattern-errors 
+   pat
+   (lambda ()
+     (let ([parsed-pattern (parser pat)])
+       (lambda (usertext)
+         (catch-reader-parser-errors usertext
+                                     (lambda ()
+                                       (compare-parsed parsed-pattern usertext parser))))))))
 
 
 
 ;; catch exn:fail:read and exn:fail:syntax, turn them into failures
-;; hopefully, we'll be able to do a better job of this, soon.
 (define (catch-reader-parser-errors usertext thunk)
   (with-handlers ([exn:fail:read? 
                    (lambda (exn) 
@@ -132,6 +140,30 @@
                                          (exn-message exn))]))])
     (thunk)))
 
+
+
+;; catch exn:fail:read and exn:fail:syntax, turn them into callerfails (for use on patterns)
+(define (catch-reader-parser-pattern-errors patterntext thunk)
+  (with-handlers ([exn:fail:read? 
+                   (lambda (exn) 
+                     (raise
+                      (abort-with
+                       (callerfail 
+                        (format "problem while parsing pattern: ~s on ~s with srclocs ~s" 
+                                (exn-message exn)
+                                patterntext
+                                (exn:fail:read-srclocs exn))))))]
+                  [exn:fail:syntax? 
+                   (lambda (exn)
+                     (raise
+                      (abort-with
+                       (callerfail 
+                        (format "problem while parsing pattern: ~s on ~s at ~s"
+                                (exn-message exn)
+                                patterntext
+                                (map syntax->datum (exn:fail:syntax-exprs exn)))))))])
+    (thunk)))
+
 ;; given position and span and message, produce a fail message:
 (define (posn-span->fail posn span usertext message)
   (match (list posn span)
@@ -156,6 +188,9 @@
                     (error 'compare-parsed "internal error 20110321-19:44, expected user parsed to be a struct"))
                   (parsed-exp-equal? correct-parsed user-parsed #f)
                   (success)))]))
+
+
+
 
 
 ;; parsed-exp-equal? : parsed parsed src-offset src-offset -> boolean
@@ -340,6 +375,9 @@
 
 
 
+
+
+
 ;; TESTING
 
 (check-equal? (fail-wrap #true (src 1 2 3 4 5 6 7)) #t)
@@ -357,12 +395,16 @@
               (fail-msg 1 7 "098732" #:msg "bad number literal: 098732"))
 
 
+
+
+
 (check-equal? (parses-as-int? "  34") #t)
 (check-equal? (parses-as-int? "  a") #f)
 (check-equal? (parses-as-int? "  3 // zappa") #t)
 (check-equal? (parses-as-int? "  3.4 // zappa") #f)
 (check-equal? (any-c-int "098273")
               (fail-msg 1 7 "098273" #:msg "bad number literal: 098273"))
+
 
 
 ;; GENERAL PARSER MATCH TESTS
@@ -394,6 +436,8 @@
 (check-equal? (p-test "f(3,4)" "")
               (failure empty-input-msg))
 
+
+
 ;; this level can catch syntactic errors:
 
 (check-equal? ((pattern->matcher parse-expression "((x + 34) + 22)") "x+34+22") (success))
@@ -401,7 +445,6 @@
               (fail-msg 3 5 "x+35+22"))
 (check-equal? ((pattern->matcher parse-expression "((x + 34) + 22)") "x+35+ +22;") 
               (fail-msg 10 11 "x+35+ +22;" #:msg "parse: unexpected semi-colon (`;')"))
-
 
 ;; test the wrapper function:
 (check-equal? (c-parser-match "((x + 34) + 22)"
@@ -424,6 +467,7 @@
 (check-equal? 
  (c-parser-match "abc" "091823740")
  (fail-msg 1 10 "091823740" #:msg "bad number literal: 091823740"))
+
 
 
 ;; once again on statements:
@@ -480,6 +524,18 @@
                                    "")
               (failure empty-input-msg))
 
+;; bad pattern:
+
+(check-equal? (callerfail? (c-stmt-parser-match "not a c expression"
+                                                "1234;"))
+              #t)
+
+
+;; oh dear...
+
+(check-equal? (c-stmt-parser-match "123;"
+                                   "if (( color == 'B' ) ||  ( color == 'V')) { dark = 'Y'; } else { dark = 'N'; }")
+              14)
 
 
 

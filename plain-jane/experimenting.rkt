@@ -7,7 +7,8 @@
 
 (define eval-server-url-prefix 
   ;; remote host:
-  "http://localhost:8025/"
+  #;"http://localhost:8025/"
+  "http://brinckerhoff.org:8025/"
   ;; intra-process
   #;"evaluator://"
   )
@@ -146,10 +147,13 @@
   (try-one-evaluator (c-parser-box "f((3+4)/7,234.3)")))
 
 
+ 
 ;; WHAT SHOULD WE ACTUALLY RUN?
 (go 
  #;show-off-example
- (the-lab))
+ (try-one-evaluator (box (url "c-stmt-parser-match")
+                         `((pattern "if (( color == 'B' ) ||  ( color == 'V')) { dark = 'Y'; } else { dark = 'N'; }"))))
+ #;(the-lab))
 
 
 #;(require (file "/Users/clements/trac-webide/labs/validate-lib.rkt"))
