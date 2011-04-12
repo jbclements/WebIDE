@@ -17,22 +17,23 @@
     ;; no exceptions allowed to pass:
     (with-handlers ([(lambda (x) #t)
                      (lambda (exn)
-                       (log-and-return
-                        abort
+                       ((log-and-return
+                         abort
+                         #f)
                         "serverfail"
                         (format "internal error: ~s" 
                                 (exn-message exn))))])
       (log-debug "received request")
       (define logged-request-tag (log-incoming-eval-request request))
+      (define aborter (log-and-return abort logged-request-tag))
       (define uri (request-uri request))
       (define post-data (request-post-data/raw request))
-      (define path-string (url-path->path abort (url-path uri)))
+      (define path-string (url-path->path aborter (url-path uri)))
       (match-let* ([(list args-assoc textfields-assoc) 
                     (with-handlers 
                         ([exn:fail? 
                           (lambda (exn)
-                            (log-and-return 
-                             abort
+                            (aborter
                              "callerfail"
                              (format
                               "exception during decoding input data with message: ~a"
@@ -42,8 +43,7 @@
           (first
            (dict-ref evaluator-table path-string
                      (lambda ()
-                       (log-and-return
-                        abort
+                       (aborter
                         "callerfail"
                         (format 
                          "unknown evaluator path: ~a"
@@ -56,8 +56,7 @@
 (define (url-path->path aborter url-path)
   (with-handlers ([exn:fail?
                    (lambda (exn)
-                     (log-and-return
-                      aborter
+                     (aborter
                       "callerfail"
                       (format "exception during decoding path with message: ~a"
                               (exn-message exn))))])
@@ -83,18 +82,20 @@
   (define present (dict-map assoc (lambda (k v) k)))
   (define missing (remove* present required))
   (unless (empty? missing)
-    (log-and-return aborter 
-                    "callerfail"
-                    (format "request for evaluator ~s is missing these required ~s: ~s"
-                            (url->string uri)
-                            kind-str
-                            missing))))
+    (aborter 
+     "callerfail"
+     (format "request for evaluator ~s is missing these required ~s: ~s"
+             (url->string uri)
+             kind-str
+             missing))))
 
 
 ;; log an error, return it to the user
-(define (log-and-return escaper status message)
+(define ((log-and-return escaper logged-request-id) status message)
   (log-error message)
-  (escaper (make-webide-response `((status . ,status) (message . ,message)))))
+  (define result-dict `((status . ,status) (message . ,message)))
+  (log-outgoing-eval-result logged-request-id result-dict)
+  (escaper (make-webide-response result-dict)))
 
 (define (approx-age-header-checker firstline)
   (match (birth-year-example firstline)
@@ -169,17 +170,17 @@
 
 
 (check-equal? (url-path->path
-               (lambda (x) x)
+               (lambda args 5)
                (list (path/param "foo" '())
                      (path/param "goo" '())))
               "foo/goo")
 (check-equal? (url-path->path
-               (lambda (x) 'fail)
+               (lambda args 'fail)
                (list (path/param "foo" '("zipzap"))
                      (path/param "goo" '())))
               'fail)
 (check-equal? (url-path->path
-               (lambda (x) 'fail)
+               (lambda args 'fail)
                (list (path/param 'up '())
                      (path/param "goo" '())))
               'fail)

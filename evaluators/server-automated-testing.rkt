@@ -77,7 +77,7 @@
 
 ;; REGRESSION TESTING ON JAVA HEADER EVALUATOR:
 (check-equal? (time (remote-evaluator-call (string-append l-u "getApproxAgeHeader") '() '()))
-              #s(serverfail "bad arguments or user texts for path \"getApproxAgeHeader\" in: () and ()"))
+              #s(callerfail "bad arguments or user texts for path \"getApproxAgeHeader\" in: () and ()"))
 
 (check-equal? (remote-evaluator-call (string-append l-u "getApproxAgeHeader") 
                                      '() '((glorple . "foober")))
@@ -89,11 +89,11 @@
 (check-equal? (remote-evaluator-call (string-append l-u "any-c-int") 
                                      '() 
                                      '((dc . "224")))
-              #s(success))
+              (success))
 (check-equal? (remote-evaluator-call (string-append l-u "any-c-int") 
                                      '() 
                                      '((dc . "  224 /* comment */")))
-              #s(success))
+              (success))
 (check-equal? (remote-evaluator-call (string-append l-u "any-c-int") 
                                      '() 
                                      '((dc . "  224 123")))
@@ -102,7 +102,7 @@
 (check-equal? (remote-evaluator-call (string-append l-u "any-c-addition")
                                      '()
                                      '((dc . " 234 /* foo */ + 224")))
-              #s(success))
+              (success))
 (check-equal? (remote-evaluator-call (string-append l-u "any-c-addition")
                                      '()
                                      '((dc . " 234 /* foo */ + - 224")))
@@ -111,7 +111,7 @@
 (check-equal? (remote-evaluator-call (string-append l-u "c-parser-match")
                                      '((pattern . "234"))
                                      '((dc . "234")))
-              #s(success))
+              (success))
 
 (check-equal? (remote-evaluator-call (string-append l-u "c-parser-match")
                                      '((pattern . "234"))
@@ -128,7 +128,7 @@
 (check-equal? (remote-evaluator-call (string-append l-u "c-stmt-parser-match")
                                      '((pattern . "if (3 < 4) { return 4; } else {return 2;}"))
                                      '((frog . "if    ((3 < 4)) {return 4;} else {return 2;}"))) 
-              #s(success))
+              (success))
 
 
 (check-equal? (remote-evaluator-call (string-append l-u "c-stmt-parser-match")
@@ -149,9 +149,18 @@
               #s(failure (div "This box is empty.")))
 
 
+;; what happens on unparsable patterns?
+
+(check-equal? (remote-evaluator-call (string-append l-u "c-stmt-parser-match")
+                                     '((pattern . "definitely not a legal c program"))
+                                     '((frog . "324")))
+              #s(callerfail "problem while parsing pattern: \"#f:1:11: parse: unexpected identifier (perhaps missing a typedef declaration?) in: not\" on \"definitely not a legal c program\" at (not)"))
 
 
-
+(check-equal? (remote-evaluator-call (string-append l-u "c-parser-match")
+                                     '((pattern . "3 || 4"))
+                                     '((frog . "(3 || 4)")))
+              #s(success))
 
 
 

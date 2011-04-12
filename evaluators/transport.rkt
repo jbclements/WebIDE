@@ -40,7 +40,7 @@
     ["success" (success)]
     ["failure" (failure (decode-html-from-transport (hash-ref jsexpr 'message)))]
     ["serverfail" (serverfail (hash-ref jsexpr 'message))]
-    ["callerfail" (serverfail (hash-ref jsexpr 'message))]
+    ["callerfail" (callerfail (hash-ref jsexpr 'message))]
     [other (serverfail (format "unexpected response: ~s" jsexpr))]))
 
 

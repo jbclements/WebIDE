@@ -7,8 +7,8 @@
 
 (define eval-server-url-prefix 
   ;; remote host:
-  "http://localhost:8025/"
-  #;"http://brinckerhoff.org:8025/"
+  #;"http://localhost:8025/"
+  "http://brinckerhoff.org:8025/"
   ;; intra-process
   #;"evaluator://"
   )
