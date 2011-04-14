@@ -7,7 +7,6 @@
          racket/runtime-path)
 
 (define-runtime-path here ".")
-(define the-url "http://localhost:29387/bountsy/alwaysSucceed")
 
 ;; this function responds to any request
 (define (start request)  
@@ -26,7 +25,7 @@
      ;; ... and return it:
      (response/plain evaluator-response)]
     ;; default: serve initial page
-    [other (error 'start "I didn't mean to catch those paths...")]))
+    [other (error 'start "unexpected(ly long) path: ~s" other)]))
 
 (define (response/plain text)
   (response/full
@@ -39,7 +38,7 @@
 (serve/servlet start
                #:port 29387
                #:listen-ip #f
-               ;;#:launch-browser? #f
+               #:launch-browser? #f
                #:servlet-path "/startup.html" ;; actually *not* the servlet
                #:servlet-regexp #px"^/bountsy/.*" ;; capture bountsy paths
                #:server-root-path here
