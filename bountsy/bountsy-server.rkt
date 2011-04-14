@@ -3,9 +3,10 @@
 (require web-server/servlet-env
          web-server/http
          web-server/templates
-         net/url)
+         net/url
+         racket/runtime-path)
 
-(define the-url "http://localhost:29387/bountsy/alwaysSucceed")
+(define-runtime-path here ".")
 
 ;; this function responds to any request
 (define (start request)  
@@ -24,8 +25,7 @@
      ;; ... and return it:
      (response/plain evaluator-response)]
     ;; default: serve initial page
-    [other (response/plain 
-            (string->bytes/utf-8 (include-template "index.html")))]))
+    [other (error 'start "unexpected(ly long) path: ~s" other)]))
 
 (define (response/plain text)
   (response/full
@@ -38,6 +38,8 @@
 (serve/servlet start
                #:port 29387
                #:listen-ip #f
-               ;;#:launch-browser? #f
-               #:servlet-regexp #px""  ;; trivially succeeds
+               #:launch-browser? #f
+               #:servlet-path "/startup.html" ;; actually *not* the servlet
+               #:servlet-regexp #px"^/bountsy/.*" ;; capture bountsy paths
+               #:server-root-path here
                #:log-file "webide-backend-webserver-log")
