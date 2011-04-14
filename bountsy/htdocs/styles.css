@@ -1,0 +1,30 @@
+html {
+  height:100%;
+}
+body {
+  background-image: -webkit-gradient(
+    linear,
+    left bottom,
+    left top,
+    color-stop(0, rgb(214,214,214)),
+    color-stop(0.69, rgb(237,237,237))
+  );
+  background-image: -moz-linear-gradient(
+    center bottom,
+    rgb(214,214,214) 0%,
+    rgb(237,237,237) 69%
+    );
+  height:100%;
+  font-size:1.4em;
+}
+  
+.section {
+  position:relative;
+  width: 600px;
+  /*        height: 400px;*/
+  margin: 20px auto;
+  border: 1px solid #999;
+  background-color: #C7E5ED;
+  padding: 40px;
+  text-align:center;
+}

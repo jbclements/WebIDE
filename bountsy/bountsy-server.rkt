@@ -13,6 +13,8 @@
   (match (url-path (request-uri request))
     ;; is the path "bountsy" followed by another local path?
     [(list (path/param "bountsy" '()) (path/param evaluator-localpath '()))
+     (define post-text (request-post-data/raw request))
+     (log-info (format "post-text: ~s\n" post-text))
      ;; bounce the given POST text through to the evaluator
      (define evaluator-response
        (first

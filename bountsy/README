@@ -1,0 +1,6 @@
+This directory contains a 30-line racket server that bounces requests made to
+bountsy/<some-path-component> 
+to
+http://brinckerhoff.org:8025/<some-path-component>
+... with the same post-text.  It does little to no error checking. It serves 
+other URLs from the htdocs dir.
