@@ -17,7 +17,19 @@ body {
   height:100%;
   font-size:1.4em;
 }
-  
+
+p {
+    text-align:left;
+}
+
+input {
+    vertical-align:text-top;
+}
+
+h3 {
+    text-align:center;
+}
+
 .section {
   position:relative;
   width: 600px;
@@ -26,5 +38,24 @@ body {
   border: 1px solid #999;
   background-color: #C7E5ED;
   padding: 40px;
-  text-align:center;
+/*  left:50%;*/
+/*  margin-left:-300px;*/
+/*  text-align:center;*/
+}
+
+#nextButton {
+  height:20px;
+}
+
+#nextButtonHolder {
+    width:200px;
+    height:60px;
+    position:relative;
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: 50px;
+    background-color: #BEF2BA;
+    border: 1px solid #999;
+    text-align:center;
+    line-height:60px;
 }

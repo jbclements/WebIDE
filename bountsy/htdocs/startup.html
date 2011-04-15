@@ -1,39 +1,77 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+  "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
 <html>
   <head>
     <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.5.2/jquery.min.js" type="text/javascript" charset="utf-8"></script>
     <script src="qtip.js" type="text/javascript" charset="utf-8"></script>
     <script src="script.js" type="text/javascript" charset="utf-8"></script>
     <script type="text/javascript" charset="utf-8">
-    $(document).ready(runLab);
+      $(document).ready(runLab);
     </script>
     <link rel="stylesheet" href="styles.css" type="text/css" media="screen" title="no title" charset="utf-8">
     <title>
-      One Field Form
+      Demo Lab
     </title>
   </head>
   <body>
-      <div class="section" id="q1">
+      <div class="section" step='0'>
         <form class="answerfield" method="post" action="bountsy/alwaysSucceed">
-          Type the text to go to the evaluator: <br><br>
-          <textarea name="comments" cols="40" rows="6"></textarea> <br>
-          <input type="submit" value="Send to evaluator">
+          <p><h3>Integers</h3></p>
+          <p>
+            The first step in any programming task is to think about the kinds of
+            data that you need, and the first step in learning a new programming
+            language is to understand the kinds of data that it can represent.
+          </p>
+          <p>
+            These are called "values."
+          </p>
+          <p>
+            In C, the most basic set of values are the whole numbers, or "integers."
+            13 is an integer, and so is 0, and so is -146.
+          </p>
+          <p>
+            Try entering an integer in this box:
+          </p>
+          <textarea id="q1box" name="comments" cols="20" rows="1"></textarea>
+          <input type="submit" value="evaluate">
+          <p>
+            If you like, you can try a bunch of different integers. Are there
+            things that you expect to be integers that aren't? If you're unsure
+            about whether something is an integer in C, you can come back and use
+            this box.
+          </p>
         </form>
       </div>
-      <div class="section" id="q2">
+      <div class="section" step="1">
         <form class="answerfield" method="post" action="bountsy/any-c-int">
-          Type more text to go to the evaluator: <br><br>
-          <textarea name="comments" cols="40" rows="6"></textarea> <br>
-          <textarea name="problem2" cols="40" rows="6"></textarea> <br>
-          <input type="submit" value="Send to evaluator">
+          <p><h3>Arithmetic operations</h3></p>
+          <p>
+            The C language has a variety of boolean operations, including addition (+),
+            subtraction (-), multiplication (*), and division (/).  Make sure you can
+            find all of these on the keyboard.
+          </p>
+          <p>
+            These operators behave more or less as you might expect, with a few gotchas.
+          </p>
+          <p>
+            To add <code>3</code> and <code>4</code> together, for instance, you can write <code>3 + 4</code>.
+          </p>
+          <p>
+            Write an arithmetic expression that uses addition to add two numbers:
+          </p>
+          <textarea evaluator='any-c-addition' id="foomf" name="text-field-4"></textarea>
+          <input type="submit" value="Evaluate">
+          <p>
+            So, what are the gotchas? The biggest one has to do with integer division.
+            In C, dividing an integer by an integer produces another integer.  This works
+            as you might expect for quotients like <code>4 / 2</code>, but when the denominator
+            does not evenly divide the numerator, C rounds toward zero. (What if one is negative? Don't ask. Please.)
+          </p>
+          <br>
         </form>
       </div>
-      <div class="section" id="q3">
-        <form class="answerfield" method="post" action="bountsy/bogus-evaluator-url">
-          Type even more text!!!: <br><br>
-          <textarea name="comments" cols="40" rows="6"></textarea> <br>
-          <input type="submit" value="Send to evaluator">
-        </form>
+      <div id="nextButtonHolder">
+        <input id="nextButton" type="button" value="Continue" style="width:100px;height:40px;">
       </div>
   </body>
 </html>
