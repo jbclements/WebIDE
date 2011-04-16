@@ -44,7 +44,8 @@ h3 {
 }
 
 #nextButton {
-  height:20px;
+  height:30px;
+  width:100px;
 }
 
 #nextButtonHolder {
