@@ -13,6 +13,7 @@
 (printf "number of requests: ~s\n" (mongo-collection-count requests))
 (printf "number of results: ~s\n" (mongo-collection-count results))
 
+;; -> (listof (list/c timestamp duration result problem textfields))
 (define (extract-result-request-pairs)
   (for/list ([r (mongo-collection-find results '())])
     (define result-timestamp (hash-ref r 'timestamp))
@@ -49,7 +50,9 @@
   (match bindings
     [(vector (hash-table ('id #"request")
                          ('value bytes)))
-     (define jsexpr (json->jsexpr (bytes->string/utf-8 bytes)))
+     (define jsexpr (with-handlers
+                        ([exn:fail? (lambda (exn) #f)])
+                        (json->jsexpr (bytes->string/utf-8 bytes))))
      (match jsexpr
        [(hash-table ('id id)
                     ('args args)
@@ -69,12 +72,13 @@
                  (hash))]))
 
 
-(define result-request-pairs (extract-result-request-pairs))
+(define submissions (extract-result-request-pairs))
 
-(define durations (map second result-request-pairs))
+(define durations (map second submissions))
+(printf "mean and variance of latency:")
 (mean-and-variance durations)
 
-#|
+
 
 ;; (submission -> any) (listof submissions) (listof (list/c any (list submissions)))
 (define (group-by key-finder submissions)
@@ -98,13 +102,18 @@
                                     (hash-ref ht (second p) empty)))))
   (hash-map ht list))
 
-(define submissions (extract-all-submissions))
-(define labs (group-by (lambda (x) (third (second x))) submissions))
+(define labs (group-by (lambda (x) (third (fourth x))) submissions))
 (printf "number of labs: ~s\n" (length labs))
 (printf "lab ids:\n")
 (map first labs)
 (printf "sizes:\n")
 (map length (map second labs))
+
+(define (successful? p) 
+  (match (third p)
+    [(hash-table ('status "success")
+                 ('message m)) #t]
+    [other #f]))
 
 (define (lab-info lab-pair)
   (define name (first lab-pair))
@@ -113,8 +122,9 @@
   (define sorted (sort times time<=?))
   (define earliest (first sorted))
   (define latest (last sorted))
-  (define by-problem (group-by second submissions))
-  (define problem-counts (map (lambda (pg) (list (first pg) (length (second pg))))
+  (define by-problem (group-by fourth submissions))
+  (define problem-counts (map (lambda (pg) (list (first pg) (length (second pg))
+                                                 (length (filter successful? (second pg)))))
                               by-problem))
   (list name
         (length submissions)
@@ -129,11 +139,24 @@
 
 (map lab-info labs-of-interest)
 
-(define by-problem (group-by second submissions))
+(define by-problem (group-by fourth submissions))
 
-(second 
- (assoc '("/c-parser-match" #hasheq((pattern . "(number % 7) == 0")) "Day")
-        by-problem))
+(define sample-problem-1 
+  (assoc '("/c-parser-match" #hasheq((pattern . "(number % 7) == 0")) "Day")
+         by-problem))
+
+(define sample-fails (filter (lambda (x) (not (successful? x))) (second sample-problem-1)))
+
+(length sample-fails)
+(define grouped-fails (group-by (lambda (x) x) (map fifth sample-fails)))
+(sort (map (lambda (x) (list (match-let ([(hash-table ('divisible str)) (first x)])
+                               str) 
+                             (length (second x)))) grouped-fails)
+      <
+      #:key second)
+
+
+
 
 
 #|
@@ -171,5 +194,4 @@ lab-ids
   (sort (hash-map ht list) > #:key second))
 
 
-|#
 |#
