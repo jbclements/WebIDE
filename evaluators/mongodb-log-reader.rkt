@@ -149,11 +149,14 @@
 
 (length sample-fails)
 (define grouped-fails (group-by (lambda (x) x) (map fifth sample-fails)))
-(sort (map (lambda (x) (list (match-let ([(hash-table ('divisible str)) (first x)])
-                               str) 
-                             (length (second x)))) grouped-fails)
-      <
-      #:key second)
+(map (lambda (x)
+       (list (second x)
+             (first x)))
+     (sort (map (lambda (x) (list (match-let ([(hash-table ('divisible str)) (first x)])
+                                    str) 
+                                  (length (second x)))) grouped-fails)
+           >
+           #:key second))
 
 
 
