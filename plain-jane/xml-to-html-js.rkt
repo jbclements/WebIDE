@@ -8,7 +8,7 @@
          xml->steps
          pcon)
 
-(define webide-namespace "http://www.web-ide.org/namespaces/labs/1")
+(define webide-namespace "http://www.web-ide.org/namespaces/labs/2")
 
 (define webide-ns `((w1 . ,webide-namespace)))
 
@@ -26,16 +26,16 @@
 
 ;; this stylesheet provides transformations from 
 ;; webide XML elements to HTML elements
-(define stylesheet
+(define (make-stylesheet step-num)
   (list
    [apat (w1:step (name . others) . content)
-         `(div (h3 "step name: " ,name) . ,content)]
+         `(div (@ (class "step") (stepnum ,(number->string step-num))) . ,content)]
    ;; eat the evaluators for display
    [apat (w1:evaluator any . content)
          ""]
    ;; eat the buttons for now...
-   [apat (w1:button attrs . elts)
-         "*THERE WOULD BE A BUTTON HERE*"]
+   [apat (w1:button (label) . elts) ;; RIGHT HERE
+         `(input (@ (type "submit") (value "")))]
    ;; userfields become textareas
    [apat (w1:userfield (id . others) . content)
          `(textarea  (@ (name ,id))
