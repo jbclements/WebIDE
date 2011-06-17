@@ -8,3 +8,7 @@
 (struct serverfail (msg) #:prefab)
 (struct callerfail (msg) #:prefab)
 
+(define (not-called x)
+  (= x 1234))
+
+
