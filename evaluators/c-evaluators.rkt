@@ -272,7 +272,8 @@
          (fail-jump (vector-ref (struct->vector user-parsed) 1)
                     #:msg should-be-absent-msg)]
         [(and (false? user-parsed) (struct? correct-parsed))
-         (fail-jump )]
+         (error 'parsed-exp-equal?
+                "internal error 201110181111: should have been caught higher up")]
         [(or (struct? user-parsed) (struct? correct-parsed))
          (error 'parsed-exp-equal?
                 "internal error 201103221829: one struct, one non-struct: ~a and ~a"

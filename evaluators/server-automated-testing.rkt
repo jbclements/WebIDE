@@ -57,7 +57,7 @@
 (check-equal? (url-alive? "http://www.berkeley.edu/ohhoeuntesuth") #f)
 
 (check-equal? (time (not (not (url-alive? amazon-evaluator)))) #t)
-#|
+
 (check-equal? (url-alive? "http://bogo-host-that-doesnt-exist.com/") #f)
 
 (printf "finished testing Java evaluators\n")
@@ -167,5 +167,3 @@
               #s(success))
 
 
-
-|#

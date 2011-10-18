@@ -11,6 +11,7 @@
          "transport.rkt"
          "mongodb-logger.rkt")
 
+(define LOGGING-DISABLED #t)
 
 (define (start request)
   (let/ec abort
@@ -24,7 +25,9 @@
                         (format "internal error: ~s" 
                                 (exn-message exn))))])
       (log-debug "received request")
-      (define logged-request-tag (log-incoming-eval-request request))
+      (define logged-request-tag (if LOGGING-DISABLED
+                                     #f
+                                     (log-incoming-eval-request request)))
       (define aborter (log-and-return abort logged-request-tag))
       (define uri (request-uri request))
       (define post-data (request-post-data/raw request))
@@ -48,8 +51,9 @@
                         (format 
                          "unknown evaluator path: ~a"
                          path-string))))))
+        (log-debug "calling evaluator")
         (define result-dict (result->dict (evaluator path-string args-assoc textfields-assoc)))
-        (log-outgoing-eval-result logged-request-tag result-dict)
+        (unless LOGGING-DISABLED (log-outgoing-eval-result logged-request-tag result-dict))
         (make-webide-response result-dict)))))
 
 ;; url-path->path : (listof path/param) -> string
@@ -94,7 +98,7 @@
 (define ((log-and-return escaper logged-request-id) status message)
   (log-error message)
   (define result-dict `((status . ,status) (message . ,message)))
-  (log-outgoing-eval-result logged-request-id result-dict)
+  (unless LOGGING-DISABLED (log-outgoing-eval-result logged-request-id result-dict))
   (escaper (make-webide-response result-dict)))
 
 (define (approx-age-header-checker firstline)
