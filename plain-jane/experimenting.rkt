@@ -151,9 +151,9 @@
 ;; WHAT SHOULD WE ACTUALLY RUN?
 (go 
  #;show-off-example
- (try-one-evaluator (box (url "c-stmt-parser-match")
+ #;(try-one-evaluator (box (url "c-stmt-parser-match")
                          `((pattern "if (( color == 'B' ) ||  ( color == 'V')) { dark = 'Y'; } else { dark = 'N'; }"))))
- #;(the-lab))
+ (the-lab))
 
 
 #;(require (file "/Users/clements/trac-webide/labs/validate-lib.rkt"))

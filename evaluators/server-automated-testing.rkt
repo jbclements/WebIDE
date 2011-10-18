@@ -23,7 +23,8 @@
   (equal? (hash-ref r 'status) "failure"))
 
 (define amazon-evaluator
-    "http://184.73.238.21/webide/evaluators/JavaEvaluator/JavaEvaluator.php")
+  #;"http://localhost:59475/"
+  "http://184.73.238.21/webide/evaluators/JavaEvaluator/JavaEvaluator.php")
 
 (define (amazon-success-equal? args textfields)
   (check-equal? (remote-evaluator-call amazon-evaluator args textfields)
@@ -56,14 +57,17 @@
 (check-equal? (url-alive? "http://www.berkeley.edu/ohhoeuntesuth") #f)
 
 (check-equal? (time (not (not (url-alive? amazon-evaluator)))) #t)
-
+#|
 (check-equal? (url-alive? "http://bogo-host-that-doesnt-exist.com/") #f)
+
+(printf "finished testing Java evaluators\n")
 
 ;; RACKET EVALUATORS
 
 (define l-u 
   #;"http://localhost:8025"
   "http://brinckerhoff.org:8025/")
+
 
 
 (check-equal? (url-alive? l-u) #t)
@@ -164,3 +168,4 @@
 
 
 
+|#
