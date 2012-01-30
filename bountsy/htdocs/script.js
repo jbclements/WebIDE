@@ -1,5 +1,11 @@
 var currentQuestion = 0;
 
+// a lab description is an array of panel descriptions
+// a panel description has a name, and an array of evaluator calls
+
+//var p1 = {
+//var sampleLabDesc=[p1,p2,p3];
+
 function runLab(){
     // easy form submit shortcut - currently broken
     // $(".answerfield textarea").keydown(function(key) {
@@ -11,6 +17,8 @@ function runLab(){
     // });
     
     // hide the steps except for the first
+
+    // JBC: why the string appending here?
     $("[step=" + '1' + "]").hide();
     // and the next button
     $('#nextButtonHolder').hide();
@@ -24,12 +32,13 @@ function runLab(){
       var childuns = $(this).children("textarea");
       
       childuns.each(function(index) {
-        var studentAnswerField = $(this);
+          var studentAnswerField = $(this);
         
-        // disable the textfield until the result is back        
-        studentAnswerField.attr('readonly', 'true').css('background-color', '#DDD');
-        // HACK so we can destroy the tooltip the next time the form is submitted
-        $('.tooltip_'+ studentAnswerField.attr('id')).qtip('destroy');
+          // disable the textfield until the result is back        
+          studentAnswerField.attr('readonly', 'true').css('background-color', '#DDD');
+          // HACK so we can destroy the tooltip the next time the form is submitted
+          $('.tooltip_'+ studentAnswerField.attr('id')).qtip('destroy');
+          console.log("foo bar baz!");
         
         var studentResponse = $(this).val();
         
