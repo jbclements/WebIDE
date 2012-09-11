@@ -1,7 +1,8 @@
 #lang racket
 
 (require (planet clements/sxml2)
-         "apat.rkt")
+         "apat.rkt"
+         "../../trac-webide/labs/validate-lib.rkt")
 
 (module+ test (require rackunit))
 
@@ -57,32 +58,41 @@
 ;; version 1 stylesheet:
 (define v1-stylesheet
   (list
-   [apat (w1:lab attrs . content)
-         `(w2:lab (@ ,@attrs) . ,content)]
-   [apat (w1:step (name . others) . content)
-         `(div (h3 "step name: " ,name) . ,content)]
+   [apat (w1:step attrs . content)
+         (match (dict-ref attrs 'buttonName)
+           ;; no buttonName specified
+           [#f (error)]
+           [(list name) 
+            (define other-attrs (dict-remove attrs 'buttonName))
+            (define new-button
+              `(w1:button
+                (@ (label ,name) (evaluator "BOGUS"))))
+            `(w1:step (@ ,@other-attrs) 
+                      (w1:content . ,(append content
+                                             (list new-button))))])]
    ;; eat the evaluators
-   [apat (w1:evaluator any . content)
+   #;[apat (w1:evaluator any . content)
          ""]
    ;; segments become textareas
-   [apat (w1:segment (id width height . others) . content)
+   #;[apat (w1:segment (id width height . others) . content)
          `(textarea  (@ (name ,id)
                         (width ,width)
                         (height ,height))
                      "" ,@content)]
    ;; tables
-   [apat (w1:labtable (rows cols . otherattrs) . elts)
+   #;[apat (w1:labtable (rows cols . otherattrs) . elts)
          `(table (@ (rows ,rows) (cols ,cols))
                  ,@(regroup rows cols elts))]
-   [apat (w1:add attrs . content)
+   #;[apat (w1:add attrs . content)
          `(td . ,content)]
    ;; code tag becomes pre tag
-   [apat (w1:code attrs . content)
+   #;[apat (w1:code attrs . content)
          `(pre (@ ,@attrs) ,@content)]
    ;; don't process attributes or text
    `(@ *preorder* . ,(lambda args args))
    `(*text* . ,(lambda (t a) a))
-   `(*default* . ,(lambda (tag . elts) 
+   `(*default* . ,(lambda args args)
+               #;(lambda (tag . elts) 
                     (cons (strip-tag tag) elts)))))
 
 
@@ -187,22 +197,34 @@ def"))
 
 
 (define lab1
-  (call-with-input-file "/Users/clements/trac-webide/labs/tiny-lab.xml"
+  (call-with-input-file "/Users/clements/trac-webide/labs/android.xml"
   (lambda (p)
     (port->xml p))))
 
-lab1
 (define the-lab
   (match ((sxpath '(w1:lab)) lab1)
     [(list l) l]
     [other (error 'aontehu)]))
 
-(srl:sxml->xml `(*TOP* (@
-                        (*NAMESPACES* 
-                         (w1 "http://www.web-ide.org/namespaces/labs/2")))
-                       ,the-lab))
-(call-with-output-file "/tmp/a.xml"
-  (lambda (port)
-    (fprintf port "~a" (srl:sxml->xml the-lab))))
 
-(pre-post-order the-lab v1-stylesheet)
+(define (wrap-with-top element)
+  `(*TOP* (@
+           (*NAMESPACES* 
+            (w1 "http://www.web-ide.org/namespaces/labs/2")))
+          ,element))
+
+
+(when (file-exists? "/tmp/a.xml")
+  (delete-file "/tmp/a.xml"))
+
+(define processed 
+  (wrap-with-top
+   (pre-post-order
+    the-lab
+    v1-stylesheet)))
+
+processed
+(validate-sxml processed)
+
+
+
