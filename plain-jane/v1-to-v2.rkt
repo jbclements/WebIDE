@@ -1,0 +1,191 @@
+#lang racket
+
+;; STILL EXPERIMENTAL
+
+(require (planet clements/sxml2)
+         "apat.rkt"
+         "../../trac-webide/labs/validate-lib.rkt")
+
+(module+ test (require rackunit))
+
+
+
+(define webide-1-namespace "http://www.web-ide.org/namespaces/labs/1")
+(define webide-2-namespace "http://www.web-ide.org/namespaces/labs/2")
+
+(define webide-ns `((w1 . ,webide-1-namespace)
+                    (w2 . ,webide-2-namespace)))
+
+;; read the lab xml from a port
+(define (port->xml port)
+  (ssax:xml->sxml port webide-ns))
+
+
+
+
+
+;; extract the steps from a lab *that uses w1 as a namespace prefix*
+(define (xml->steps lab-sxml)
+  ((sxpath '(w1:lab w1:step)) lab-sxml))
+
+
+;; version 1 stylesheet:
+(define v1-stylesheet
+  (list
+   [apat (w1:step attrs . content)
+         (match (dict-ref attrs 'buttonName)
+           ;; no buttonName specified
+           [#f (error)]
+           [(list name) 
+            (define other-attrs (dict-remove attrs 'buttonName))
+            (define new-button
+              `(w1:button
+                (@ (label ,name) (evaluator "BOGUS"))))
+            `(w1:step (@ ,@other-attrs) 
+                      (w1:content . ,(append content
+                                             (list new-button))))])]
+   ;; eat the evaluators
+   #;[apat (w1:evaluator any . content)
+         ""]
+   ;; segments become textareas
+   #;[apat (w1:segment (id width height . others) . content)
+         `(textarea  (@ (name ,id)
+                        (width ,width)
+                        (height ,height))
+                     "" ,@content)]
+   ;; tables
+   #;[apat (w1:labtable (rows cols . otherattrs) . elts)
+         `(table (@ (rows ,rows) (cols ,cols))
+                 ,@(regroup rows cols elts))]
+   #;[apat (w1:add attrs . content)
+         `(td . ,content)]
+   ;; code tag becomes pre tag
+   #;[apat (w1:code attrs . content)
+         `(pre (@ ,@attrs) ,@content)]
+   ;; don't process attributes or text
+   `(@ *preorder* . ,(lambda args args))
+   `(*text* . ,(lambda (t a) a))
+   `(*default* . ,(lambda args args)
+               #;(lambda (tag . elts) 
+                    (cons (strip-tag tag) elts)))))
+
+
+;; return all of the evaluators contained in an element
+(define (extract-evaluators elt)
+  ((sxpath '(// w1:evaluator) '()) `(*TOP* ,elt)))
+
+
+;; regroup : string string (listof sxml) -> (listof td)
+(define (regroup rows cols elts)
+  (define width (string->number cols))
+  (unless (andmap (tag-checker 'td) elts)
+    (error 'process-content "expected only cells in table, got: ~a" elts))
+  (unless (integer? (/ (length elts) width))
+    (error 'process-content "number of table entries (~a) is not divisible by number of table columns (~a)" (length elts) width))
+  (unless (integer? (/ (length elts) (string->number rows)))
+    (error 'process-content "number of table entries (~a) is not divisible by number of table rows (~a)" (length elts) (string->number rows)))
+  (let loop ([left elts])
+    (cond [(empty? left) empty]
+          [else (cons `(tr . ,(take left width))
+                      (loop (drop left width)))])))
+
+
+;; extract an attribute representing a number
+(define (num-attr attrs key)
+  (match (assoc key attrs)
+    [`(,dc ,num-str) (string->number num-str)]
+    [other (error 'num-attr "no ~a attribute found among ~a" key attrs)]))
+
+;; tag-checker : tag -> element -> boolean?
+(define ((tag-checker tag) element)
+  (and (list? element) (equal? (first element) tag)))
+
+;; strip the colon-separated part of a symbol off.
+(define (strip-tag s)
+  (match (regexp-match #px"[^:]*:(.*)" (symbol->string s))
+    [(list match rhs) (string->symbol rhs)]
+    [false (error 'strip-tag "tag without prefix: ~a" s)]))
+
+;; TEST CASES
+(module+ test 
+(check-equal? (num-attr '((a "13") (b "14")) 'a) 13)
+(check-equal? (num-attr '((a "13") (b "14")) 'b) 14)
+
+
+
+(check-equal? ((tag-checker 'w1:evaluator) `(3 w1:evaluator)) #f)
+(check-equal? ((tag-checker 'w1:evaluator) `(w1:evaluator (@ (abc "def")))) #t)
+
+
+(check-equal? (xml->steps `(*TOP* (@ (*NAMESPACES* (w1 ,webide-1-namespace)))
+                                  (w1:lab (w1:step "abc") (w1:step "def"))))
+              '((w1:step "abc") (w1:step "def")))
+
+;; tests for version 1 spec
+#;(check-equal? (pcon `(w1:add "bc"))
+              `(td "bc"))
+
+#;(check-equal? (regroup "3" "2" 
+                       `((td "a1")
+                         (td "a2")
+                         (td "a3")
+                         (td "a4")
+                         (td "a5")
+                         (td "a6")))
+              `((tr (td "a1") (td "a2"))
+                (tr (td "a3") (td "a4"))
+                (tr (td "a5") (td "a6"))))
+
+#;(check-equal? (pcon `(w1:labtable (@ (rows "2") (cols "1"))
+                                  (w1:add "a")
+                                  (w1:add "b")))
+              `(table (@ (rows "2") (cols "1"))
+                      (tr (td "a"))
+                      (tr (td "b"))))
+
+#;(check-equal? (pcon `(w1:segment (@ (id "boo")(width "20") (height "1"))))
+              `(textarea (@ (name "boo")(width "20") (height "1")) ""))
+
+
+
+)
+
+
+(define lab1
+  (call-with-input-file "/Users/clements/trac-webide/labs/android.xml"
+  (lambda (p)
+    (port->xml p))))
+
+(define the-lab
+  (match ((sxpath '(w1:lab)) lab1)
+    [(list l) l]
+    [other (error 'aontehu)]))
+
+
+((sxpath '(// w1:step)) `(*TOP* ,the-lab))
+
+;; return all of the evaluators contained in an element
+#;(define (extract-evaluators elt)
+  (map pre-evaluator->evaluator ((sxpath '(// pre-evaluator) '()) `(*TOP* ,elt))))
+
+
+(define (wrap-with-top element)
+  `(*TOP* (@
+           (*NAMESPACES* 
+            (w1 "http://www.web-ide.org/namespaces/labs/2")))
+          ,element))
+
+(when (file-exists? "/tmp/a.xml")
+  (delete-file "/tmp/a.xml"))
+
+(define processed 
+  (wrap-with-top
+   (pre-post-order
+    the-lab
+    v1-stylesheet)))
+
+processed
+(validate-sxml processed)
+
+
+
