@@ -1,9 +1,6 @@
 #lang racket
 
-(require web-server/servlet-env
-         web-server/http/request-structs
-         xml
-         (planet dherman/json:3:0))
+(require web-server/servlet-env)
 
 
 (define (start request)

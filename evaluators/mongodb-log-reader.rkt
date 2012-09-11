@@ -1,8 +1,8 @@
 #lang racket
 
 (require (planet jaymccarthy/mongodb)
-         (planet dherman/json)
          srfi/19
+         json
          (planet williams/science/statistics))
 
 (define m (create-mongo))
@@ -52,7 +52,7 @@
                          ('value bytes)))
      (define jsexpr (with-handlers
                         ([exn:fail? (lambda (exn) #f)])
-                        (json->jsexpr (bytes->string/utf-8 bytes))))
+                        (string->jsexpr (bytes->string/utf-8 bytes))))
      (match jsexpr
        [(hash-table ('id id)
                     ('args args)

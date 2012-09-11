@@ -1,10 +1,9 @@
 #lang racket
 
-(require (planet dherman/json:3:0)
-         (planet clements/sxml2)
+(require (planet clements/sxml2)
+         json
          net/url
          net/uri-codec
-         rackunit
          "shared.rkt")
 
 (provide
@@ -107,14 +106,14 @@
   (define response-str
     (remote-evaluator-call/bytes 
      url-string 
-     (jsexpr->json jsexpr)))
-  (json->jsexpr response-str))
+     (jsexpr->string jsexpr)))
+  (string->jsexpr response-str))
 
 ;; S->c
 
 ;; given a jsexpr, serialize it into a byte-string:
 (define (jsexpr->response-bytes jsexpr)
-  (string->bytes/utf-8 (jsexpr->json jsexpr)))
+  (string->bytes/utf-8 (jsexpr->string jsexpr)))
 
 ;; THIS LAYER DEALS WITH STRINGS & BYTES
 
@@ -168,7 +167,7 @@
 
 ;; given post-bytes, map it back to a list of two association lists.
 (define (post-bytes->args-n-fields post-bytes)
-  (jsexpr->args-n-fields (json->jsexpr (post-bytes->str post-bytes))))
+  (jsexpr->args-n-fields (string->jsexpr (post-bytes->str post-bytes))))
 
 
 
@@ -180,15 +179,14 @@
     #t))
 
 
-
-
-
-
+(module+ test
+  
 ;; TEST CASES
 
+(require rackunit)
 
 (check-equal? (match (post-bytes->args-n-fields
-                      (str->post-bytes (jsexpr->json
+                      (str->post-bytes (jsexpr->string
                                         (make-eval-jsexpr
                                          '((a . "234")
                                            (b . "2778029"))
@@ -224,3 +222,4 @@
                (encode-html-for-transport
                 `(foo (|@| (size "19") (h "apple")) "abc " (i "def") " ghi")))
               `(div (foo (|@| (size "19") (h "apple")) "abc " (i "def") " ghi")))
+)

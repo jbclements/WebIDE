@@ -37,6 +37,8 @@
       empty
       (list text)))
 
+(printf "after startup, visit the server at http://localhost:29387/startup.html\n")
+
 (serve/servlet start
                #:port 29387
                #:listen-ip #f

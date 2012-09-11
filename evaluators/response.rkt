@@ -1,7 +1,7 @@
 #lang racket
 
 (require xml
-         (planet dherman/json:3:0))
+         json)
 
 (provide failure success internal-error)
 
@@ -15,4 +15,4 @@
 (define (internal-error xexpr) (result "internal-error" (xexpr->string xexpr)))
 
 (define (result tag text)
-  (jsexpr->json (make-immutable-hasheq `((tag . ,tag) (text . ,text)))))
+  (jsexpr->string (make-immutable-hasheq `((tag . ,tag) (text . ,text)))))

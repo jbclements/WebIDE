@@ -4,3 +4,11 @@ to
 http://brinckerhoff.org:8025/<some-path-component>
 ... with the same post-text.  It does little to no error checking. It serves 
 other URLs from the htdocs dir.
+
+TO TRY IT OUT:
+
+run
+
+racket bountsy-server.rkt
+
+... and visit the URL it prints to stdout.
