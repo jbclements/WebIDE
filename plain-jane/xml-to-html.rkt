@@ -1,20 +1,27 @@
 #lang racket
 
 (require (planet clements/sxml2)
-         rackunit
          "apat.rkt")
+
+(module+ test (require rackunit))
 
 (provide port->xml
          xml->steps
          pcon)
 
-(define webide-namespace "http://www.web-ide.org/namespaces/labs/1")
+(define webide-1-namespace "http://www.web-ide.org/namespaces/labs/1")
+(define webide-2-namespace "http://www.web-ide.org/namespaces/labs/2")
 
-(define webide-ns `((w1 . ,webide-namespace)))
+(define webide-ns `((w1 . ,webide-1-namespace)
+                    (w2 . ,webide-2-namespace)))
 
 ;; read the lab xml from a port
 (define (port->xml port)
   (ssax:xml->sxml port webide-ns))
+
+
+
+
 
 ;; extract the steps from a lab *that uses w1 as a namespace prefix*
 (define (xml->steps lab-sxml)
@@ -48,8 +55,10 @@
 
 
 ;; version 1 stylesheet:
-#;(define stylesheet
+(define v1-stylesheet
   (list
+   [apat (w1:lab attrs . content)
+         `(w2:lab (@ ,@attrs) . ,content)]
    [apat (w1:step (name . others) . content)
          `(div (h3 "step name: " ,name) . ,content)]
    ;; eat the evaluators
@@ -109,7 +118,7 @@
     [false (error 'strip-tag "tag without prefix: ~a" s)]))
 
 ;; TEST CASES
-
+(module+ test 
 (check-equal? (num-attr '((a "13") (b "14")) 'a) 13)
 (check-equal? (num-attr '((a "13") (b "14")) 'b) 14)
 
@@ -143,7 +152,7 @@ def"))
                     "a step"))
 
 
-(check-equal? (xml->steps `(*TOP* (@ (*NAMESPACES* (w1 ,webide-namespace)))
+(check-equal? (xml->steps `(*TOP* (@ (*NAMESPACES* (w1 ,webide-1-namespace)))
                                   (w1:lab (w1:step "abc") (w1:step "def"))))
               '((w1:step "abc") (w1:step "def")))
 
@@ -174,3 +183,26 @@ def"))
 
 
 
+)
+
+
+(define lab1
+  (call-with-input-file "/Users/clements/trac-webide/labs/tiny-lab.xml"
+  (lambda (p)
+    (port->xml p))))
+
+lab1
+(define the-lab
+  (match ((sxpath '(w1:lab)) lab1)
+    [(list l) l]
+    [other (error 'aontehu)]))
+
+(srl:sxml->xml `(*TOP* (@
+                        (*NAMESPACES* 
+                         (w1 "http://www.web-ide.org/namespaces/labs/2")))
+                       ,the-lab))
+(call-with-output-file "/tmp/a.xml"
+  (lambda (port)
+    (fprintf port "~a" (srl:sxml->xml the-lab))))
+
+(pre-post-order the-lab v1-stylesheet)
