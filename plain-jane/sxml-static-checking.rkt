@@ -1,6 +1,6 @@
 #lang racket
 
-(require (planet clements/sxml2)
+(require sxml
          rackunit)
 
 ;; verify that buttons refer to real evaluators, and that evaluators refer to real

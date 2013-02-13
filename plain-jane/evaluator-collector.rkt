@@ -1,6 +1,6 @@
 #lang racket
 
-(require (planet clements/sxml2)
+(require sxml
          "apat.rkt"
          rackunit)
 

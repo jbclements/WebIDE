@@ -4,7 +4,7 @@
          step->evaluators)
 
 (require web-server/http/request-structs
-         (planet clements/sxml2)
+         sxml
          rackunit
          "../evaluators/transport.rkt"
          "../evaluators/c-evaluators.rkt"

@@ -1,6 +1,6 @@
 #lang racket
 
-(require (planet clements/sxml2)
+(require sxml
          "apat.rkt"
          "../../trac-webide/labs/validate-lib.rkt")
 
@@ -19,10 +19,6 @@
 ;; read the lab xml from a port
 (define (port->xml port)
   (ssax:xml->sxml port webide-ns))
-
-
-
-
 
 ;; extract the steps from a lab *that uses w1 as a namespace prefix*
 (define (xml->steps lab-sxml)

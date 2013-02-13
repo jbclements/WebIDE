@@ -5,18 +5,14 @@ subdirectory.
 
 There's also a simple web-ide server, that lives in 'plain-jane'.
 
-TO TRY RUNNING IT:
+## TO TRY RUNNING IT:
 
-In DrRacket, run "plain-jane/experimenting.rkt". It'll probably make your life easier
-if you pre-install the sxml2 package by running
+First, install the sxml package:
 
-raco planet install clements sxml2.plt 1 0
+raco pkg install sxml
 
-oops I mean
+Then, In DrRacket, run "plain-jane/experimenting.rkt".
 
-racket -W info -e '(require (planet clements/sxml2))'
-
-oh dear I should open this in an editor, rather than just using 'cat'.
 
 Also, startup will be faster if you already have a browser open before running
 'experimental.rkt'.

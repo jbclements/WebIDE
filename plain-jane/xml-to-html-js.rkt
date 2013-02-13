@@ -1,13 +1,8 @@
 #lang racket
 
-(require (planet clements/sxml2)
+(require sxml
          rackunit
          "apat.rkt")
-
-
-
-
-
 
 (provide port->xml
          xml->steps

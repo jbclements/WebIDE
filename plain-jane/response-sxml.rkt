@@ -2,7 +2,7 @@
 (require racket/list
          web-server/http/cookie
          web-server/http/response-structs
-         (planet clements/sxml2))
+         sxml)
 
 (define (response/sxml
          sxml

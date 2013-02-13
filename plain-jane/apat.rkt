@@ -1,7 +1,6 @@
 #lang racket
 
-(require (for-syntax syntax/parse)
-         rackunit)
+(require (for-syntax syntax/parse))
 
 (provide apat
          standardize/shallow)
@@ -43,24 +42,22 @@
       [elements
        (apply fun tag (cons '@ '()) elements)])))
 
-
-
-
-
-(check-equal? (apply
-               (standardize/shallow (lambda (a b . rest)
-                                      (list a b rest)))
-               `(tag (@ (attr1 "zip") (attr2 "zap")) "a" "b"))
-              (list 'tag
-                    '(@ (attr1 "zip") (attr2 "zap"))
-                    '("a" "b")))
-(check-equal? (apply
-               (standardize/shallow (lambda (a b . rest)
-                                      (list a b rest)))
-               `(tag  "a" "b"))
-              (list 'tag
-                    '(@ )
-                    '("a" "b")))
+(module+ test
+  (require rackunit)
+  (check-equal? (apply
+                 (standardize/shallow (lambda (a b . rest)
+                                        (list a b rest)))
+                 `(tag (@ (attr1 "zip") (attr2 "zap")) "a" "b"))
+                (list 'tag
+                      '(@ (attr1 "zip") (attr2 "zap"))
+                      '("a" "b")))
+  (check-equal? (apply
+                 (standardize/shallow (lambda (a b . rest)
+                                        (list a b rest)))
+                 `(tag  "a" "b"))
+                (list 'tag
+                      '(@ )
+                      '("a" "b")))
 
 ;; regular match:
 (check-equal?
@@ -130,3 +127,8 @@
       (w1:id () . content)
       13])
     `(w1:id (@ (foo "13")) "abc" "def"))))
+
+  
+  
+  
+  )
