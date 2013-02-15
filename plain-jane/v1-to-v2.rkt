@@ -8,8 +8,14 @@
 
 (module+ test (require rackunit))
 
-;; NB: currently, the lab author must re-insert buttons where
-;; they belong...
+;; the hardest thing about interpreting v1 is figuring 
+;; out where the buttons are supposed to go.  This code
+;; basically tries to guess, but it's almost guaranteed
+;; to be wrong. Basically, it puts a button after any 
+;; userfield that specified an evaluator, and a button
+;; at the bottom that connects to all evaluators, on the
+;; principle that it's easier to delete stuff than to 
+;; add it.
 
 (define webide-1-namespace "http://www.web-ide.org/namespaces/labs/1")
 (define webide-2-namespace "http://www.web-ide.org/namespaces/labs/2")
@@ -29,39 +35,40 @@
 (define (xml->steps lab-sxml)
   ((sxpath '(w1:lab w1:step)) lab-sxml))
 
+;; aw, heck. I'm just going to use a parameter here, to 
+;; step outside of lexical scoping.
+(define evaluator-table (make-parameter #f))
+
 ;; rewrite a step:
 (define (rewrite-step step)  
-  (define evaluator-table (step->evaluator-table step))
+  (evaluator-table (step->evaluator-table step))
   (define new-evaluators 
-    (evaluator-table->new-evaluators evaluator-table))
+    (evaluator-table->new-evaluators (evaluator-table)))
   (match step
     [`(w1:step (@ . ,attrs) . ,content)
-     (match (dict-ref attrs 'buttonName #f)
-       ;; no buttonName specified
-       [#f 
-        `(w2:step (@ ,@attrs) 
-                  ,@new-evaluators
-                  (w2:content . ,content))]
-       [(list name)
-        (define other-attrs (dict-remove attrs 'buttonName))
-        (unless (= (length evaluator-table) 1)
-          (error 'rewrite-step
-                 "step with buttonName must have exactly one evaluator, given: ~e"
-                 step))
-        (define evaluator (first evaluator-table))
-        (unless (= (count-segments step) 0)
-          (error 'rewrite-step
-                 "step with buttonName must not have segments, given: ~e"
-                 step))
-        ;; check for no segments...
-        (define new-button
+     (match-define (list maybe-dependency
+                         other-content)
+       (match content
+         [(cons `(w1:dependency (@ (stepName ,name))) other)
+          (list name other)]
+         [other (list #f other)]))
+     (define button-name 
+       (first (or (dict-ref attrs 'buttonName #f)
+                  (list "FIXME-unnamed-button"))))
+     (define other-attrs (dict-remove attrs 'buttonName))
+     (define new-button
           `(w2:button
-            (@ (label ,name))
-            (w2:evaluatorName ,(second evaluator))))
-        `(w2:step (@ ,@other-attrs)
-                  ,@new-evaluators
-                  (w2:content . ,(append content
-                                         (list new-button))))])]))
+            (@ (label ,button-name))
+            ,@(for/list ([evalname (map second (evaluator-table))])
+                `(w2:evaluatorName ,evalname))))
+     `(w2:step (@ ,@other-attrs)
+               ,@(if maybe-dependency
+                     `((w2:dependency ,maybe-dependency))
+                     `())
+               ,@new-evaluators
+               
+               (w2:content . ,(append other-content
+                                      (list new-button))))]))
 
 
 ;; extract the evaluators from a step, and construct 
@@ -84,12 +91,19 @@
                              (list 'href href))) 
                       . ,segs-and-args)
        `(w2:evaluator (@ (name ,name) (href ,href))
-                      ;; FIXME!
-                      ;; these will need to be reformatted:
-                      . ,(map rewrite-arg segs-and-args))]
+                      . ,(sort
+                          (map rewrite-arg segs-and-args)
+                          fixed-arg-<))]
       [other (error 'evaluator-rewrite
                     "evaluator didn't match spec: ~e" 
                     other)])))
+
+(define (fixed-arg-< a b)
+  (match (list a b)
+    [(list `(w2:fixedArg . ,_) `(w2:fixedArg . ,_)) #t]
+    [(list `(w2:fixedArg . ,_) `(w2:userfieldArg . ,_)) #t]
+    [(list `(w2:userfieldArg . ,_) `(w2:fixedArg . ,_)) #f]
+    [(list `(w2:userfieldArg . ,_) `(w2:userfieldArg . ,_)) #t]))
 
 ;; rewrite the segids and args of v1. Note that this may fail
 ;; to validate if the fixedArgs don't precede the userfield args.
@@ -109,21 +123,34 @@
              . ,(lambda elts
                  (rewrite-step elts)))
    ;; eat the evaluators... now done in rewrite-step
-   [apat (w1:evaluator attrs . content)
-         `(eat-me-later)]
+   `(w1:evaluator
+     *macro*
+     . ,(lambda step
+          (define name (first
+                         (dict-ref (evaluator-table) step)))
+          `(w2:button (@ (label "FIXME-need-a-label"))
+                      (w2:evaluatorName ,name))))
    ;; segments become userfields
    [apat (w1:segment attrs . content)
-         
-         (match (dict-ref attrs 'buttonName #f)
-           [#f `(w2:userfield
-                 (@ . ,attrs)
-                 ;; ...gnarr! what do evaluators in here mean?
-                 ,@content
-                 )])
-         #;`(textarea  (@ (name ,id)
-                        (width ,width)
-                        (height ,height))
-                     "" ,@content)]
+         (begin
+           (define button-name
+             (first (or (dict-ref attrs 'buttonName #f)
+                        (list "FIXME-unnamed-button!"))))
+           (define-values (enclosed-buttons other-content)
+             (partition (lambda (elt)
+                          (match elt
+                            [`(w2:button . ,_) #t]
+                            [other #f]))
+                        content))
+           (define named-buttons
+             (map (replace-button-name button-name)
+                  enclosed-buttons))
+           (define other-attrs (dict-remove attrs 'buttonName))
+           `(flatten-me
+             (w2:userfield
+              (@ . ,other-attrs)
+              ,@other-content)
+             ,@named-buttons))]
    ;; tables
    [apat (w1:labtable (rows cols . otherattrs) . elts)
          `(w2:table (@ . ,otherattrs)
@@ -133,6 +160,9 @@
    ;; code tag becomes pre tag
    [apat (w1:code attrs . content)
          `(w2:pre (@ ,@attrs) ,@content)]
+   ;; dependencies look a bit different
+   [apat (w1:dependency (stepName . otherattrs) . elts)
+         `(w2:dependency ,stepName)]
    ;; hint isn't supported, but mostly isn't used....
    [apat (w1:hint attrs . content)
          (begin
@@ -142,13 +172,19 @@
            (when (not (empty? content))
              (fprintf (current-error-port)
                       "DISCARDING HINT content: ~e" attrs))
-           `(eat-me-later))]
+           (list 'eat-me-later))]
    ;; don't process attributes or text
    `(@ *preorder* . ,(lambda args args))
    `(*text* . ,(lambda (t a) a))
    `(*default* . 
                ,(lambda (tag . elts) 
                     (cons (rewrite-tag tag) elts)))))
+
+;; maybe add a name to a button
+(define ((replace-button-name name) button)
+  (match button
+    [`(w2:button (@ (label "FIXME-need-a-label")) . ,elts)
+     `(w2:button (@ (label ,name)) . ,elts)]))
 
 
 ;; return all of the evaluators contained in an element
@@ -163,13 +199,23 @@
 ;; regroup : string string (listof sxml) -> (listof td)
 (define (regroup rows cols elts)
   (define width (string->number cols))
+  (define height (string->number rows))
   (unless (andmap (tag-checker 'w2:td) elts)
     (error 'process-content "expected only cells in table, got: ~e" elts))
   (unless (integer? (/ (length elts) width))
-    (error 'process-content 
-           "number of table entries (~a) is not divisible by number of table columns (~a)"
-           (length elts) width))
-  (unless (integer? (/ (length elts) (string->number rows)))
+    (raise-argument-error
+     'process-content 
+     (format
+      "table with number of entries (~a) divisible by number of table columns (~a)" 
+      (length elts) width)
+     2 rows cols elts))
+  (unless (= (length elts) (* width height))
+    (raise-argument-error
+     'process-content 
+     (format
+      "table with number of entries (~a) equal to product of cols and rows (~a)" 
+      (length elts) (* width height))
+     2 rows cols elts)
     (error 'process-content 
            "number of table entries (~a) is not divisible by number of table rows (~a)"
            (length elts) (string->number rows)))
@@ -246,7 +292,10 @@
 (define (extract-lab lab)
   (match ((sxpath '(w1:lab)) lab)
     [(list l) l]
-    [other (error 'aontehu)]))
+    [other
+     (raise-argument-error
+      'extract-lab "sxml beginning with w1:lab"
+      0 lab)]))
 
 ;; wrap a *TOP* element back around the tree.
 (define (wrap-with-top element)
@@ -262,11 +311,14 @@
 
 ;; rewrite the lab from sxml to sxml
 (define (rewrite lab)
-  ((sxml:modify '("//eat-me-later" delete))
-   (wrap-with-top
-    (pre-post-order
-     (extract-lab lab)
-     v1-stylesheet))))
+  ;; make sure these don't leak outside one lab:
+  (parameterize ([evaluator-table #f])
+    ((sxml:modify '("//flatten-me" delete-undeep))
+     ((sxml:modify '("//eat-me-later" delete))
+      (wrap-with-top
+       (pre-post-order
+        (extract-lab lab)
+        v1-stylesheet))))))
 
 ;; COPIED FROM VALIDATE.RKT:
 
@@ -286,7 +338,8 @@
     (when (and (not must-be-dir?)
                (not (symbol? name))
                (xml-path? name)
-               (not (broken-test? name)))
+               (not (broken-test? name))
+               (not (regexp-match #px"translated-labs" f)))
       (printf "translating file: ~s\n" f)
       (define sxml
         (call-with-input-file f
@@ -298,15 +351,13 @@
             (lambda (exn)
               (display (exn-message exn) (current-error-port))
               #f)))
-      (define cleaned
-        ((sxml:modify '("//eat-me-later" delete))
-         ((sxml:modify '("//eat-me-later" delete))
-          ((sxml:modify '("//eat-me-later" delete))
-           (rewrite sxml)))))
-      (display-to-file (srl:sxml->xml cleaned)
-                       (build-path base 
-                                   "translated-labs"
-                                   name))))))
+        (define cleaned (rewrite sxml))
+        (validate-sxml cleaned)
+        (display-to-file (srl:sxml->xml cleaned)
+                         (build-path base 
+                                     "translated-labs"
+                                     name)
+                         #:exists 'truncate)))))
 
 (translate-dir "/Users/clements/trac-webide/labs/")
 
@@ -379,18 +430,5 @@
         (w2:button (@ (label "Compile apk")) (w2:evaluatorName "evaluator0")))))))
   
   
-  
-  
-  (define zombie-node '(zombie))
-(define t3 
-  `(*TOP*
-    (body
-     (a ,zombie-node
-        13
-        ,zombie-node)
-     (b ,zombie-node
-        ,zombie-node))))
-(check-equal? ((sxml:modify '("//zombie" delete)) t3)
-              `(*TOP* (body (a) (b))))
   )
 
