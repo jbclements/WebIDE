@@ -1,6 +1,11 @@
-#lang racket
+#lang racket/base
 
-(require web-server/servlet-env
+
+(require (for-syntax racket/base)
+         racket/match
+         racket/list
+         racket/dict
+         web-server/servlet-env
          web-server/http/request-structs
          web-server/http/response-structs
          net/url
