@@ -1,6 +1,6 @@
 #lang racket
 
-(require (planet jaymccarthy/mongodb)
+(require db/mongodb
          srfi/19
          json
          (planet williams/science/statistics))

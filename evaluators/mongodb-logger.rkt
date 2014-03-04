@@ -1,10 +1,9 @@
 #lang racket
 
-(require (planet jaymccarthy/mongodb)
+(require db/mongodb
          web-server/http/request-structs
          net/url
-         srfi/19
-         "shared.rkt")
+         srfi/19)
 
 (provide log-incoming-eval-request
          log-outgoing-eval-result)
