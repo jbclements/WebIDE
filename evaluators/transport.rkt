@@ -107,7 +107,12 @@
     (remote-evaluator-call/bytes 
      url-string 
      (jsexpr->string jsexpr)))
-  (string->jsexpr response-str))
+  (with-handlers ([exn:fail? 
+                   (lambda (exn)
+                     (fprintf (current-error-port)
+                              "string->jsexpr failed on string: ~v" response-str)
+                     (raise exn))])
+    (string->jsexpr response-str)))
 
 ;; S->c
 
