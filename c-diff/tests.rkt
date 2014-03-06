@@ -3,7 +3,7 @@
 ;; initial code by Bill Hess, 2011-01-03
 
 (require "cdiff.rkt"
-         (planet dherman/c:3:2)
+         c
          rackunit)
 
 (check-equal? (same-struct? (parse-expression "4 * 2 ") (parse-expression "4 *2")) #t)

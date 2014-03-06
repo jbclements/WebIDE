@@ -2,7 +2,8 @@
 
 (require "transport.rkt"
          "shared.rkt"
-         rackunit)
+         rackunit
+         rackunit/text-ui)
 
 
 ;; TESTING:
@@ -34,8 +35,9 @@
   (check-equal? (failure? (remote-evaluator-call amazon-evaluator args textfields))
                 #true))
 
-(time (amazon-success-equal? sample-args '((groupC . "group = 'C';"))))
-(time (check-amazon-fail? sample-args '((groupC . "234;"))))
+;; looks like amazon evaluators are not working??
+#;(time (amazon-success-equal? sample-args '((groupC . "group = 'C';"))))
+#;(time (check-amazon-fail? sample-args '((groupC . "234;"))))
 
 
 (define (n-times n thunk)
@@ -64,9 +66,14 @@
 
 ;; RACKET EVALUATORS
 
+(run-tests
+(test-suite
+ "racket evaluator tests"
+ (let ()
 (define l-u 
   #;"http://localhost:8025"
-  "http://brinckerhoff.org:8025/")
+  #;"http://brinckerhoff.org:8025/"
+  "http://li592-145.members.linode.com:8025")
 
 
 
@@ -101,7 +108,7 @@
 (check-equal? (remote-evaluator-call (string-append l-u "any-c-int") 
                                      '() 
                                      '((dc . "  224 123")))
-              #s(failure (div (div (p "#f:1:6: parse: unexpected integer literal in: 123") (p (span (@ (style "font-family: monospace;")) "  224 " (span (@ (style "border: 1px solid rgb(50, 50, 50); background-color : rgb(250,200,200);")) "123")))))))
+              #s(failure (div (div (p "#f:1:6: parse: unexpected integer literal\n  in: 123") (p (span (@ (style "font-family: monospace;")) "  224 " (span (@ (style "border: 1px solid rgb(50, 50, 50); background-color : rgb(250,200,200);")) "123")))))))
 
 (check-equal? (remote-evaluator-call (string-append l-u "any-c-addition")
                                      '()
@@ -158,12 +165,12 @@
 (check-equal? (remote-evaluator-call (string-append l-u "c-stmt-parser-match")
                                      '((pattern . "definitely not a legal c program"))
                                      '((frog . "324")))
-              #s(callerfail "problem while parsing pattern: \"#f:1:11: parse: unexpected identifier (perhaps missing a typedef declaration?) in: not\" on \"definitely not a legal c program\" at (not)"))
+              #s(callerfail "problem while parsing pattern: \"#f:1:11: parse: unexpected identifier (perhaps missing a typedef declaration?)\\n  in: not\" on \"definitely not a legal c program\" at (not)"))
 
 
 (check-equal? (remote-evaluator-call (string-append l-u "c-parser-match")
                                      '((pattern . "3 || 4"))
                                      '((frog . "(3 || 4)")))
-              #s(success))
+              #s(success)))))
 
 

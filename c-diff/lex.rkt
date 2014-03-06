@@ -3,8 +3,8 @@
 ;; initial code by Bill Hess, 2011-01-03
 
 (require parser-tools/lex
-         (planet dherman/c:3:2/ast)
-         (planet dherman/c:3:2/private/lexer))
+         c/ast
+         c/private/lexer)
 
 (provide c-lex-diff 
          missing-code

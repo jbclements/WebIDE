@@ -2,7 +2,7 @@
 
 ;; initial code by Bill Hess, 2011-01-03
 
-(require (planet dherman/c:3:2)
+(require c
          "lex.rkt")
 
 (provide c-program-diff
