@@ -3,7 +3,7 @@
 (require db/mongodb
          srfi/19
          json
-         (planet williams/science/statistics))
+         math/statistics)
 
 (define m (create-mongo))
 (define d (mongo-db m "webideEvalLog"))
@@ -76,7 +76,8 @@
 
 (define durations (map second submissions))
 (printf "mean and variance of latency:")
-(mean-and-variance durations)
+(mean durations)
+(variance durations)
 
 
 

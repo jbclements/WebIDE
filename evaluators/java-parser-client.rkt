@@ -1,7 +1,7 @@
 #lang racket
 
-(require (planet dherman/java/syntax/ast)
-         (planet dherman/java/syntax/parser)
+(require java/syntax/ast
+         java/syntax/parser
          rackunit)
 
 
@@ -47,7 +47,9 @@
                                   str
                                   (second expr-wrap-strings)))))))
 
-(match (expr-string->parsed "14 + 34")
-  [(struct binary-expr (_1 _2 '+ (struct integer-literal (_3 14))
-                           (struct integer-literal (_4 34))))
-   #t])
+(check-equal?
+ (match (expr-string->parsed "14 + 34")
+   [(struct binary-expr (_1 _2 '+ (struct integer-literal (_3 14))
+                            (struct integer-literal (_4 34))))
+    #t])
+ #t)
