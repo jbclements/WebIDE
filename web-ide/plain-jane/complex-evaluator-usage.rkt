@@ -1,10 +1,12 @@
 #lang at-exp racket
 
+;; copyright 2010-2014 John Clements (clements@racket-lang.org)
+
 (require web-server/servlet-env
          "page-displayer.rkt"
          "lab-definition-utils.rkt"
          "sxml-static-checking.rkt"
-         #;(file "/Users/clements/trac-webide/labs/validate-lib.rkt"))
+         "validate-lib.rkt")
 
 (define eval-server-url-prefix 
   ;; remote host:
@@ -142,5 +144,4 @@
  (the-lab))
 
 
-#;(require (file "/Users/clements/trac-webide/labs/validate-lib.rkt"))
-#;(validate-sxml (the-lab))
+(validate-sxml (the-lab))

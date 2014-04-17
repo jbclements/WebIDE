@@ -1,5 +1,8 @@
 #lang racket
 
+;; NOT COMPILING... IN UNKNOWN STATE:
+
+#|
 (require racket/sandbox
          "common.ss"
          rackunit)
@@ -49,5 +52,5 @@
   (with-handlers ([exn:fail? (lambda (exn) (error-result (exn-message exn) (get-output evaluator)))]
                   [(lambda (exn) #t) (lambda (exn) (error-result (format "~v" exn)))])
     (let ([results (map evaluator stxs)])
-      (values-result results (get-output evaluator))))))
+      (values-result results (get-output evaluator))))))|#
 

@@ -1,6 +1,10 @@
 #lang racket
 
+;; copyright 2010-2014 John Clements (clements@racket-lang.org)
 
+;; work in progress, apparently.
+
+#;(
 (require rackunit
          "evaluator-collector-v1.rkt")
 
@@ -139,4 +143,4 @@
 
 (check-equal? (par-break 
                '("\n" "abc" "\n" "def" "\n" "\n" "ghi" "\n" "\n" "\n" "jkl" "\n" "\n"))
-              '("\n" "abc"  "\n" "def" "\n" "\n" "ghi" "\n" "\n" "\n" "jkl" "\n" "\n"))
+              '("\n" "abc"  "\n" "def" "\n" "\n" "ghi" "\n" "\n" "\n" "jkl" "\n" "\n")))

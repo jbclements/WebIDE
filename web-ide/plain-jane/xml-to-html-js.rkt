@@ -1,5 +1,9 @@
 #lang racket
 
+;; copyright 2010-2012 John Clements (clements@racket-lang.org)
+
+;; sigh... what the heck *is* this file?
+#;(
 (require sxml
          rackunit
          "apat.rkt")
@@ -170,7 +174,7 @@ def"))
                       (tr (td "b"))))
 
 #;(check-equal? (pcon `(w1:segment (@ (id "boo")(width "20") (height "1"))))
-              `(textarea (@ (name "boo")(width "20") (height "1")) ""))
+              `(textarea (@ (name "boo")(width "20") (height "1")) "")))
 
 
 

@@ -4,7 +4,7 @@
 
 (require sxml
          "apat.rkt"
-         "../../trac-webide/labs/validate-lib.rkt")
+         "validate-lib.rkt")
 
 (module+ test (require rackunit))
 

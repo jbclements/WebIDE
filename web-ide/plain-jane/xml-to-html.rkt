@@ -1,8 +1,10 @@
 #lang racket
 
+;; copyright 2010-2014 John Clements (clements@racket-lang.org)
+
 (require sxml
          "apat.rkt"
-         "../../trac-webide/labs/validate-lib.rkt")
+         "validate-lib.rkt")
 
 (module+ test (require rackunit))
 
