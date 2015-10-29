@@ -55,12 +55,16 @@
          (lambda ()
            (amazon-success-equal? sample-args '((groupC . "group = 'C';")))))
 
-
+(run-tests
+ (test-suite
+  "amazon tests"
 (check-equal? (url-alive? "http://www.berkeley.edu/ohhoeuntesuth") #f)
 
-(check-equal? (time (not (not (url-alive? amazon-evaluator)))) #t)
+(test-equal?
+ "amazon evaluator alive"
+ (time (not (not (url-alive? amazon-evaluator)))) #t)
 
-(check-equal? (url-alive? "http://bogo-host-that-doesnt-exist.com/") #f)
+(check-equal? (url-alive? "http://bogo-host-that-doesnt-exist.com/") #f)))
 
 (printf "finished testing Java evaluators\n")
 
@@ -71,9 +75,12 @@
  "racket evaluator tests"
  (let ()
 (define l-u 
+  ;; test locally:
   #;"http://localhost:8025"
+  ;; test brinckerhoff.org (whatever it points to)
   #;"http://brinckerhoff.org:8025/"
-  "http://li592-145.members.linode.com:8025")
+  ;; test new linode
+  "http://nelson.brinckerhoff.org:8025")
 
 
 
