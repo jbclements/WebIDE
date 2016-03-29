@@ -78,10 +78,7 @@
   ;; test locally:
   #;"http://localhost:8025"
   ;; test brinckerhoff.org (whatever it points to)
-  "http://brinckerhoff.org:8025/"
-  ;; test new linode
-  #;"http://nelson.brinckerhoff.org:8025"
-  #;"http://desmond.brinckerhoff.org:8025")
+  "http://brinckerhoff.org:8025/")
 
 
 
