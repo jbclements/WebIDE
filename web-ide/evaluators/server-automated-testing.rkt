@@ -74,11 +74,16 @@
 (test-suite
  "racket evaluator tests"
  (let ()
-(define l-u 
-  ;; test locally:
-  #;"http://localhost:8025"
-  ;; test brinckerhoff.org (whatever it points to)
-  "http://brinckerhoff.org:8025/")
+   (define l-u 
+     ;; test locally:
+     #;"http://localhost:8025"
+     ;; test brinckerhoff.org (whatever it points to)
+     "http://brinckerhoff.org:8025/")
+
+   (printf "running tests against host: ~v\n"
+           l-u)
+
+   
 
 
 
