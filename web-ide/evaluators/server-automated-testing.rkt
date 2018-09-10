@@ -1,5 +1,8 @@
 #lang racket
 
+;; this file contains tests that ensure that the server is responding
+;; properly.
+
 (require "transport.rkt"
          "shared.rkt"
          rackunit
@@ -58,7 +61,10 @@
 (run-tests
  (test-suite
   "amazon tests"
-(check-equal? (url-alive? "http://www.berkeley.edu/ohhoeuntesuth") #f)
+
+  ;; the timeouts on these tests take nearly two minutes...
+  
+  (check-equal? (url-alive? "http://www.berkeley.edu/ohhoeuntesuth") #f)
 
 (test-equal?
  "amazon evaluator alive"
