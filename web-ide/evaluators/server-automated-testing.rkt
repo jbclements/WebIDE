@@ -58,21 +58,6 @@
          (lambda ()
            (amazon-success-equal? sample-args '((groupC . "group = 'C';")))))
 
-(run-tests
- (test-suite
-  "amazon tests"
-
-  ;; the timeouts on these tests take nearly two minutes...
-  
-  (check-equal? (url-alive? "http://www.berkeley.edu/ohhoeuntesuth") #f)
-
-(test-equal?
- "amazon evaluator alive"
- (time (not (not (url-alive? amazon-evaluator)))) #t)
-
-(check-equal? (url-alive? "http://bogo-host-that-doesnt-exist.com/") #f)))
-
-(printf "finished testing Java evaluators\n")
 
 ;; RACKET EVALUATORS
 
@@ -188,5 +173,22 @@
                                      '((pattern . "3 || 4"))
                                      '((frog . "(3 || 4)")))
               #s(success)))))
+
+(run-tests
+ (test-suite
+  "amazon tests"
+
+  ;; the timeouts on these tests take nearly two minutes...
+  
+  (check-equal? (url-alive? "http://www.berkeley.edu/ohhoeuntesuth") #f)
+
+(test-equal?
+ "amazon evaluator alive"
+ (time (not (not (url-alive? amazon-evaluator)))) #t)
+
+(check-equal? (url-alive? "http://bogo-host-that-doesnt-exist.com/") #f)))
+
+(printf "finished testing Java evaluators\n")
+
 
 
