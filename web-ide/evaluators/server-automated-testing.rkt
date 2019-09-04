@@ -26,21 +26,6 @@
 (define (fail-response? r)
   (equal? (hash-ref r 'status) "failure"))
 
-(define amazon-evaluator
-  #;"http://localhost:59475/"
-  "http://184.73.238.21/webide/evaluators/JavaEvaluator/JavaEvaluator.php")
-
-(define (amazon-success-equal? args textfields)
-  (check-equal? (remote-evaluator-call amazon-evaluator args textfields)
-                (success)))
-
-(define (check-amazon-fail? args textfields)
-  (check-equal? (failure? (remote-evaluator-call amazon-evaluator args textfields))
-                #true))
-
-;; looks like amazon evaluators are not working??
-#;(time (amazon-success-equal? sample-args '((groupC . "group = 'C';"))))
-#;(time (check-amazon-fail? sample-args '((groupC . "234;"))))
 
 
 (define (n-times n thunk)
@@ -74,11 +59,10 @@
    (printf "running tests against host: ~v\n"
            l-u)
 
+
    
-
-
-
 (check-equal? (url-alive? l-u) #t)
+
 (check-equal? (time (remote-evaluator-call (string-append l-u "alwaysSucceed") '() '()))
               (success))
 (check-equal? (time (remote-evaluator-call (string-append l-u "alwaysSucceed")
@@ -174,6 +158,26 @@
                                      '((frog . "(3 || 4)")))
               #s(success)))))
 
+(printf "starting timeout tests\n")
+
+
+
+(define amazon-evaluator
+  #;"http://localhost:59475/"
+  "http://184.73.238.21/webide/evaluators/JavaEvaluator/JavaEvaluator.php")
+
+(define (amazon-success-equal? args textfields)
+  (check-equal? (remote-evaluator-call amazon-evaluator args textfields)
+                (success)))
+
+(define (check-amazon-fail? args textfields)
+  (check-equal? (failure? (remote-evaluator-call amazon-evaluator args textfields))
+                #true))
+
+;; looks like amazon evaluators are not working??
+#;(time (amazon-success-equal? sample-args '((groupC . "group = 'C';"))))
+#;(time (check-amazon-fail? sample-args '((groupC . "234;"))))
+
 (run-tests
  (test-suite
   "amazon tests"
@@ -182,13 +186,12 @@
   
   (check-equal? (url-alive? "http://www.berkeley.edu/ohhoeuntesuth") #f)
 
-(test-equal?
- "amazon evaluator alive"
- (time (not (not (url-alive? amazon-evaluator)))) #t)
+  (test-equal?
+   "amazon evaluator alive"
+   (time (not (not (url-alive? amazon-evaluator)))) #t)
 
-(check-equal? (url-alive? "http://bogo-host-that-doesnt-exist.com/") #f)))
+  (check-equal? (url-alive? "http://bogo-host-that-doesnt-exist.com/") #f)))
 
-(printf "finished testing Java evaluators\n")
 
 
 
